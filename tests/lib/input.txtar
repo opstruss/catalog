@@ -1,0 +1,26 @@
+# input prints an input of the call: a string as it is, null or a missing
+# input as nothing, and any other value, false among them, as JSON. A
+# program outside a run, such as a watch hook, has only INPUT_<NAME>, with
+# - as _, which holds the same text.
+
+env OPSTRUSS_INPUTS=$WORK/inputs.json
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; for n in text count flag none list missing; do echo "$n=$(input "$n")"; done'
+cmp stdout run.txt
+
+env OPSTRUSS_INPUTS=
+env INPUT_MY_NAME='a b'
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; echo "my-name=$(input my-name)"; echo "other=$(input other)"'
+cmp stdout outside.txt
+
+-- inputs.json --
+{"text": "a b", "count": 3, "flag": false, "none": null, "list": [1, {"k": "v"}]}
+-- run.txt --
+text=a b
+count=3
+flag=false
+none=
+list=[1,{"k":"v"}]
+missing=
+-- outside.txt --
+my-name=a b
+other=

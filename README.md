@@ -30,8 +30,7 @@ uses:
 | `components/<name>/` | a component that composes several plugins |
 | `lib/` | helpers that the scripts of the plugins load |
 | `opstruss.catalog.yaml` | marks the root of the catalog and shares `lib` |
-
-The catalog has no packages yet.
+| `tests/<name>/` | the tests of a package |
 
 ## Packages
 
@@ -46,8 +45,17 @@ The catalog has no packages yet.
   is compiled only when a script is not enough, and then ships release
   binaries through `bin:`.
 - `lib/` is not a public API: it changes with the plugins of the catalog.
+- The tests of a package live in `tests/<name>/`, outside the package, so
+  a change to a test runs none of its units again.
 
-`mise install` installs the tools that the scripts are checked with.
+## Develop
+
+`mise install` installs the tools that the scripts are checked and tested
+with, opstruss among them. `make lint` checks the scripts and the
+workflows. `make test` runs the
+[testscript](https://pkg.go.dev/github.com/rogpeppe/go-internal/testscript)
+files of `tests/` against the tools that the plugins run.
+`make test OPSTRUSS=<path>` tests another build of opstruss.
 
 ## License
 
