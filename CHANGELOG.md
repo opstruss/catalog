@@ -16,3 +16,6 @@ release assets of a compiled plugin.
   state of the module kept with the state of OpsTruss, the lock file of
   the providers in the module, and an `exec` hook that sets up `tofu` for
   the unit.
+- `compose` plugin: Docker Compose projects as units, named after their
+  state key, with `logs` and `config` tasks and an `exec` hook that sets
+  the file and the project of the unit for `docker compose`.

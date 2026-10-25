@@ -1,0 +1,37 @@
+# opstruss exec <unit> -- <program> runs the program with Compose set to
+# the file and the project of the unit, so docker compose ps lists its
+# containers. A unit without a record has no project yet, and Compose
+# names one after the directory. The project passes DOCKER_CONFIG, as in
+# lifecycle.txtar.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+exec opstruss exec web -- sh -c 'echo "file $COMPOSE_FILE project ${COMPOSE_PROJECT_NAME:-none}"'
+stdout '/compose.yaml project none$'
+stderr '^the unit has no record yet, so Compose names its project after the directory$'
+
+exec opstruss up --yes
+exec opstruss exec web -- docker compose ps --format '{{.Service}} {{.State}}'
+stdout '^app running$'
+exec opstruss exec web -- sh -c 'echo "project $COMPOSE_PROJECT_NAME"'
+stdout '^project default-web-[0-9a-f]+$'
+
+exec opstruss down --yes
+stdout '^default/web: down: done$'
+
+-- opstruss.yaml --
+name: app
+uses:
+  compose:
+    source: ./catalog/plugins/compose
+    pass: [DOCKER_CONFIG]
+units:
+  web:
+    uses: compose
+-- compose.yaml --
+services:
+  app:
+    image: busybox:1.37
+    init: true
+    command: [sleep, "3600"]

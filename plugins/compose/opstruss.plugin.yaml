@@ -1,0 +1,32 @@
+name: compose
+description: Docker Compose projects
+requires: [docker, jq]
+env: [DOCKER_HOST, DOCKER_CONTEXT, DOCKER_CONFIG]
+inputs:
+  file:
+    type: string
+    description: The Compose file, relative to the file of the unit
+    default: compose.yaml
+outputs:
+  services:
+    type: array
+tasks:
+  plan:
+    run: [./compose.sh, plan]
+  up:
+    run: [./compose.sh, up]
+  down:
+    run: [./compose.sh, down]
+  status:
+    run: [./compose.sh, status]
+  logs:
+    inputs:
+      follow:
+        type: boolean
+        default: false
+    run: [./compose.sh, logs]
+  config:
+    description: Print the Compose file as Compose reads it
+    run: [./compose.sh, config]
+  exec:
+    run: [./compose.sh, exec]

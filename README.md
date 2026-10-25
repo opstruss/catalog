@@ -8,6 +8,7 @@ Official plugins and components for
 | Plugin | Units of |
 |---|---|
 | [tofu](plugins/tofu) | OpenTofu root modules |
+| [compose](plugins/compose) | Docker Compose projects |
 
 ## Use
 
@@ -60,7 +61,8 @@ uses:
 with, opstruss among them. `make lint` checks the scripts and the
 workflows. `make test` runs the
 [testscript](https://pkg.go.dev/github.com/rogpeppe/go-internal/testscript)
-files of `tests/` against the tools that the plugins run.
+files of `tests/` against the tools that the plugins run; the tests of
+compose need a Docker daemon and are skipped without one.
 `make test OPSTRUSS=<path>` tests another build of opstruss.
 
 ## License

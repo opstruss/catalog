@@ -1,0 +1,80 @@
+# A Compose project as a unit, named after the state key of the unit. plan
+# compares the config hash of each service with the label of its
+# container; up starts the project and hands its services on; a plan
+# without changes runs nothing; a changed service is replaced; the logs and
+# config tasks read the project; a unit removed from the project goes down
+# by the name of its project, also once its Compose file is gone.
+#
+# The project passes DOCKER_CONFIG, where the Docker CLI finds its compose
+# plugin and its contexts; the Makefile sets it when it is not set.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+exec opstruss plan
+stdout '^default/web: will run: new; plan: create app$'
+
+exec opstruss up --yes
+stdout '^default/web: up: done$'
+exec opstruss outputs --json
+stdout '"app"'
+exec opstruss exec web -- sh -c 'echo "$COMPOSE_PROJECT_NAME" > project'
+
+exec opstruss plan
+stdout '^default/web: unchanged$'
+
+exec opstruss logs web
+stdout 'hello one$'
+
+exec opstruss up --yes --input greeting=two
+stdout '^default/web: will run: definition changed: env.GREETING; plan: replace app$'
+exec opstruss logs web
+stdout 'hello two$'
+
+exec opstruss config
+stdout 'image: busybox:1.37'
+
+cp gone.yaml opstruss.yaml
+rm compose.yaml
+exec opstruss up --yes
+stdout '^default/web: down: done$'
+exec sh -c 'docker ps -aq --filter "label=com.docker.compose.project=$(cat project)"'
+! stdout .
+
+-- opstruss.yaml --
+name: app
+inputs:
+  greeting: {type: string, default: one}
+outputs:
+  services: ${{ units.web.outputs.services }}
+uses:
+  compose:
+    source: ./catalog/plugins/compose
+    pass: [DOCKER_CONFIG]
+units:
+  web:
+    uses: compose
+    with:
+      file: ./compose.yaml
+    env:
+      GREETING: ${{ inputs.greeting }}
+tasks:
+  config:
+    compose.config: {file: ./compose.yaml}
+-- gone.yaml --
+name: app
+uses:
+  compose:
+    source: ./catalog/plugins/compose
+    pass: [DOCKER_CONFIG]
+units: {}
+removed:
+  - {from: web, destroy: true}
+-- compose.yaml --
+services:
+  app:
+    image: busybox:1.37
+    init: true
+    command: [sh, -c, 'echo "hello $$GREETING"; exec sleep 3600']
+    environment:
+      GREETING: ${GREETING:-nobody}
