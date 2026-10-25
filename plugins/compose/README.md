@@ -2,7 +2,8 @@
 
 [Docker Compose](https://docs.docker.com/compose/) projects as units.
 `opstruss up` runs `docker compose up --wait`, and the services of the
-project become the output of the unit.
+project become the output of the unit. Compose prints in color where
+OpsTruss shows color, and without it when OpsTruss sets `NO_COLOR`.
 
 Needs `docker` with Compose v2 and `jq` in `PATH`.
 

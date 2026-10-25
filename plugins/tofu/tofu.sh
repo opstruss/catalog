@@ -32,6 +32,8 @@ setup() {
 	state=$OPSTRUSS_STATE_DIR/terraform.tfstate
 	vars=$tmp/vars.tfvars.json
 	planfile=$plans/plan.tfplan
+	# tofu prints color unless OpsTruss shows the output of the run without.
+	nocolor=${NO_COLOR:+-no-color}
 	TF_DATA_DIR=${OPSTRUSS_WORKDIR:-$tmp}/data
 	TF_IN_AUTOMATION=1
 	export TF_DATA_DIR TF_IN_AUTOMATION
@@ -60,7 +62,7 @@ inspect() {
 
 # plan_tofu writes a new plan file.
 plan_tofu() {
-	tofu -chdir="$dir" plan -input=false -no-color -state="$state" -var-file="$vars" -out="$planfile"
+	tofu -chdir="$dir" plan -input=false ${nocolor:+"$nocolor"} -state="$state" -var-file="$vars" -out="$planfile"
 }
 
 cmd_plan() {
@@ -90,7 +92,7 @@ cmd_up() {
 		rm -f "$planfile"
 		fail "the plan of the module changed since it was approved; plan again"
 	fi
-	tofu -chdir="$dir" apply -input=false -no-color -state="$state" "$planfile"
+	tofu -chdir="$dir" apply -input=false ${nocolor:+"$nocolor"} -state="$state" "$planfile"
 	rm -f "$planfile"
 	tofu -chdir="$dir" output -json -no-color -state="$state" >"$tmp/outputs.json"
 	jq 'map_values(.value)' "$tmp/outputs.json" >"$OPSTRUSS_OUTPUT"
@@ -102,7 +104,7 @@ cmd_up() {
 
 cmd_down() {
 	setup
-	tofu -chdir="$dir" destroy -auto-approve -input=false -no-color -state="$state" -var-file="$vars"
+	tofu -chdir="$dir" destroy -auto-approve -input=false ${nocolor:+"$nocolor"} -state="$state" -var-file="$vars"
 }
 
 cmd_status() {

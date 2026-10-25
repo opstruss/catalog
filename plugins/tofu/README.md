@@ -2,7 +2,9 @@
 
 [OpenTofu](https://opentofu.org) root modules as units. `opstruss plan`
 lists what `tofu plan` would change, `opstruss up` applies that plan, and
-the outputs of the module become the outputs of the unit.
+the outputs of the module become the outputs of the unit. Plan, apply,
+and destroy print in color where OpsTruss shows color, and without it
+when OpsTruss sets `NO_COLOR`.
 
 Needs `tofu` and `jq` in `PATH`.
 

@@ -12,6 +12,8 @@ release assets of a compiled plugin.
 
 ### Added
 
+- `tofu` and `compose` print in color unless OpsTruss sets `NO_COLOR`,
+  which it does when it shows the output of a run without color.
 - `tofu` plugin: OpenTofu root modules as units, with exact plans, the
   state of the module kept with the state of OpsTruss, the lock file of
   the providers in the module, and an `exec` hook that sets up `tofu` for

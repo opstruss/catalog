@@ -1,0 +1,28 @@
+# tofu prints in color unless OpsTruss sets NO_COLOR: without a terminal
+# the plan of tofu is plain, and where OpsTruss shows color, as FORCE_COLOR
+# asks of --json, it keeps the colors of tofu.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+exec opstruss plan --json
+stdout '"message":"OpenTofu will perform the following actions:"'
+! stdout '\\u001b\['
+
+env FORCE_COLOR=1
+exec opstruss plan --json
+stdout '"task":"plan","stream":"stdout","message":"[^"]*\\u001b\['
+
+-- opstruss.yaml --
+name: app
+uses:
+  tofu: ./catalog/plugins/tofu
+units:
+  infra:
+    uses: tofu
+    with:
+      dir: ./infra
+-- infra/main.tf --
+resource "terraform_data" "this" {
+  input = "one"
+}

@@ -6,6 +6,10 @@
 # shellcheck source-path=SCRIPTDIR source=../../lib/opstruss.sh
 . "$OPSTRUSS_PLUGIN_DIR/../../lib/opstruss.sh"
 
+# Compose prints color unless OpsTruss shows the output of the run without.
+ansi=always
+[ -z "${NO_COLOR:-}" ] || ansi=never
+
 # workdir sets work, where a call keeps its files.
 workdir() {
 	if [ -n "${OPSTRUSS_WORKDIR:-}" ]; then
@@ -56,7 +60,8 @@ cmd_plan() {
 }
 
 # Without a TTY Compose prints the lines of the network twice, also with
-# --progress plain; the plugin leaves the output of Compose as it is.
+# --progress plain; the plugin leaves the output of Compose as it is, and
+# --ansi always keeps that output in lines.
 cmd_up() {
 	workdir
 	inspect
@@ -64,7 +69,7 @@ cmd_up() {
 		fail "the Compose project changed since its plan was approved; plan again"
 	fi
 	p=$(project) || fail "the unit has no state key"
-	docker compose -p "$p" -f "$file" up -d --wait --remove-orphans
+	docker compose --ansi "$ansi" -p "$p" -f "$file" up -d --wait --remove-orphans
 	docker compose -p "$p" -f "$file" config --services >"$work/services"
 	jq -Rn '{services: [inputs | select(. != "")]}' "$work/services" >"$OPSTRUSS_OUTPUT"
 	jq '{changed: (.changes | length > 0)}' "$work/plan.json" >"$OPSTRUSS_RESULT"
@@ -76,14 +81,14 @@ cmd_down() {
 	workdir
 	p=$(project) || fail "the unit has no state key"
 	cd "$work" || exit
-	docker compose -p "$p" down --remove-orphans
+	docker compose --ansi "$ansi" -p "$p" down --remove-orphans
 }
 
 cmd_status() {
 	workdir
 	if p=$(project); then
 		cd "$work" || exit
-		docker compose -p "$p" ps -a
+		docker compose --ansi "$ansi" -p "$p" ps -a
 	else
 		echo "no project yet"
 	fi
@@ -95,14 +100,14 @@ cmd_logs() {
 	follow=$(input follow)
 	cd "$work" || exit
 	if [ "$follow" = true ]; then
-		exec docker compose -p "$p" logs --follow
+		exec docker compose --ansi "$ansi" -p "$p" logs --follow
 	fi
-	exec docker compose -p "$p" logs
+	exec docker compose --ansi "$ansi" -p "$p" logs
 }
 
 cmd_config() {
 	file=$(input file)
-	exec docker compose -f "$file" config
+	exec docker compose --ansi "$ansi" -f "$file" config
 }
 
 # exec runs the program of opstruss exec with Compose set to the file and
