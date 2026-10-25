@@ -1,0 +1,93 @@
+# tofu
+
+[OpenTofu](https://opentofu.org) root modules as units. `opstruss plan`
+lists what `tofu plan` would change, `opstruss up` applies that plan, and
+the outputs of the module become the outputs of the unit.
+
+Needs `tofu` and `jq` in `PATH`.
+
+## Use
+
+```yaml
+uses:
+  tofu: github.com/opstruss/catalog/plugins/tofu@v1
+
+secrets:
+  cloudflare: {env: CLOUDFLARE_API_TOKEN}
+
+units:
+  dns:
+    uses: tofu
+    with:
+      dir: ./dns
+      vars:
+        zone: example.com
+        cloudflare_api_token: ${{ secrets.cloudflare }}
+```
+
+Other units read the outputs of the module as
+`${{ units.dns.outputs.<name> }}`.
+
+## Inputs
+
+| Name | Type | Default | Description |
+|---|---|---|---|
+| `dir` | string | `.` | The directory of the root module, relative to the file of the unit |
+| `vars` | object | `{}` | Values of the variables of the module |
+
+## Outputs
+
+The outputs of the module, by name. Sensitive outputs stay sensitive.
+
+## Tasks
+
+| Task | What it does |
+|---|---|
+| `plan` | `tofu plan` into a plan file; the plan lists the resources and outputs that change, and is exact |
+| `up` | `tofu apply` of the plan file of `plan`, or of a new plan; fails when it is not the plan that was approved |
+| `down` | `tofu destroy` |
+| `status` | `tofu state list` |
+| `exec` | the program of `opstruss exec`, with tofu set up for the unit |
+
+## Credentials
+
+The plugin asks for no credential variables. A provider gets its
+credentials from the variables of the module, as `cloudflare_api_token`
+above, or from the files of its default chain under `HOME`, such as
+`~/.aws/credentials`. A secret with `env:` reads a variable of the
+environment, as in CI.
+
+`TF_LOG` reaches tofu when the project passes it: `pass: [TF_LOG]`.
+
+## State
+
+- The state of the module is `terraform.tfstate` in the tool directory of
+  the unit, which moves and locks with the state of OpsTruss, so the
+  module has no backend block. Only the local backend of OpsTruss keeps it
+  yet.
+- The state holds the values of the module as tofu writes them, sensitive
+  ones among them, in plain text.
+- The work directory of the unit keeps only what `tofu init` fetches. The
+  variables and the plan file live in the temporary directory of the run,
+  which ends with it.
+
+## Lock file
+
+`.terraform.lock.hcl` belongs to the module, as in Terraform: the first
+`up` writes it next to the module, and its user commits it. The units that
+use the module, as the instances of a `for_each`, share it. A module that
+cannot be written, as one from a remote source, needs a lock file that
+covers its providers; its author makes one with `tofu providers lock`.
+
+## exec
+
+```sh
+opstruss exec dns -- tofu state list
+opstruss exec dns -- tofu plan
+```
+
+The program runs in the module with the data of the unit's `tofu init`,
+and the state and the variables of the unit through
+`TF_CLI_ARGS_<command>`. `tofu show` and `tofu state pull` take no
+`-state`; the state of the unit is
+`tofu show "$OPSTRUSS_STATE_DIR/terraform.tfstate"`.

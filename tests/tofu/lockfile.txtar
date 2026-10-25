@@ -1,0 +1,77 @@
+# The lock file of the providers belongs to the module, as in Terraform:
+# the first init writes .terraform.lock.hcl next to the module, for its
+# user to commit, and the units that use the module share it. A module
+# that cannot be written, as a remote one, needs a lock file that covers
+# its providers. The providers come from the registry.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+# A provider listens on a socket in TMPDIR, and macOS limits the path of a
+# socket to 104 bytes, less than TMPDIR of a script there.
+[darwin] env TMPDIR=/tmp
+
+# Two instances of one module write one lock file on their first up.
+exec opstruss up --yes pets
+stdout '^default/pets\[a\]: up: done$'
+stdout '^default/pets\[b\]: up: done$'
+exec grep -c '^provider "registry.opentofu.org/hashicorp/random"' pet/.terraform.lock.hcl
+stdout '^1$'
+
+# A module that cannot be written and has no lock file.
+chmod 0555 fixed
+! exec opstruss up --yes fixed
+stdout 'the module in ./fixed has no .terraform.lock.hcl that covers its providers; its author commits one, made with tofu providers lock'
+
+# With a lock file that covers its providers, init leaves it as it is.
+chmod 0755 fixed
+cp pet/.terraform.lock.hcl fixed/.terraform.lock.hcl
+chmod 0555 fixed
+exec opstruss up --yes fixed
+stdout '^default/fixed: up: done$'
+cmp fixed/.terraform.lock.hcl pet/.terraform.lock.hcl
+chmod 0755 fixed
+
+-- opstruss.yaml --
+name: app
+uses:
+  tofu: ./catalog/plugins/tofu
+units:
+  pets:
+    uses: tofu
+    for_each: [a, b]
+    with:
+      dir: ./pet
+      vars: {prefix: "${{ each.key }}"}
+  fixed:
+    uses: tofu
+    with:
+      dir: ./fixed
+-- pet/main.tf --
+terraform {
+  required_providers {
+    random = {
+      source  = "hashicorp/random"
+      version = "3.7.2"
+    }
+  }
+}
+
+variable "prefix" {
+  type = string
+}
+
+resource "random_pet" "this" {
+  prefix = var.prefix
+}
+-- fixed/main.tf --
+terraform {
+  required_providers {
+    random = {
+      source  = "hashicorp/random"
+      version = "3.7.2"
+    }
+  }
+}
+
+resource "random_pet" "this" {}

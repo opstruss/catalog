@@ -9,3 +9,10 @@ latest release of each major version; a tag `<name>-vX.Y.Z` only names the
 release assets of a compiled plugin.
 
 ## [Unreleased]
+
+### Added
+
+- `tofu` plugin: OpenTofu root modules as units, with exact plans, the
+  state of the module kept with the state of OpsTruss, the lock file of
+  the providers in the module, and an `exec` hook that sets up `tofu` for
+  the unit.

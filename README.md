@@ -3,6 +3,12 @@
 Official plugins and components for
 [OpsTruss](https://github.com/opstruss/opstruss).
 
+## Plugins
+
+| Plugin | Units of |
+|---|---|
+| [tofu](plugins/tofu) | OpenTofu root modules |
+
 ## Use
 
 A project declares a package in `uses:`, by its path in this repository and

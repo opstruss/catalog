@@ -1,0 +1,88 @@
+# A root module as a unit. plan lists what tofu plan would change, as an
+# exact plan; up applies that plan and hands the outputs of the module on;
+# a plan without changes runs nothing; a changed variable updates the
+# resource; down destroys what the state holds. A credential reaches the
+# module as a sensitive variable, from a secret, and stays out of the log
+# and the records.
+
+env HOME=$WORK/home
+env TOKEN=secret-one
+symlink catalog -> $CATALOG
+
+exec opstruss validate
+stdout '^valid$'
+
+exec opstruss plan
+stdout '^default/infra: will run: new; plan: create terraform_data.this, create output.name, create output.token$'
+
+exec opstruss up --yes
+stdout '^default/infra \| Apply complete! Resources: 1 added, 0 changed, 0 destroyed.$'
+stdout '^default/infra: up: done$'
+exists .opstruss/state/default/infra/tool/terraform.tfstate
+exec opstruss outputs --json
+stdout '"name": "one"'
+! stdout 'secret-one'
+
+# The files that hold values, as the variables and the plan file, live in
+# the temporary directory of the run and end with it. The work directory
+# keeps only the cache of tofu init, which this module leaves empty.
+exec find .opstruss/work .opstruss/tmp -type f
+! stdout .
+! exec grep -rq secret-one .opstruss/runs .opstruss/state/default/infra/state.json
+
+exec opstruss plan
+stdout '^default/infra: unchanged$'
+
+exec opstruss up --yes --input name=two
+stdout 'plan: update terraform_data.this, update output.name$'
+exec opstruss outputs --json
+stdout '"name": "two"'
+
+exec opstruss status
+stdout '^default/infra \| terraform_data.this$'
+
+exec opstruss down --yes
+stdout '^default/infra \| Destroy complete! Resources: 1 destroyed.$'
+! exists .opstruss/state/default/infra/tool
+
+-- opstruss.yaml --
+name: app
+inputs:
+  name: {type: string, default: one}
+secrets:
+  token: {env: TOKEN}
+outputs:
+  name: ${{ units.infra.outputs.name }}
+  token: ${{ units.infra.outputs.token }}
+uses:
+  tofu: ./catalog/plugins/tofu
+units:
+  infra:
+    uses: tofu
+    with:
+      dir: ./infra
+      vars:
+        name: ${{ inputs.name }}
+        token: ${{ secrets.token }}
+-- infra/main.tf --
+variable "name" {
+  type = string
+}
+
+variable "token" {
+  type      = string
+  sensitive = true
+}
+
+resource "terraform_data" "this" {
+  input = var.name
+}
+
+output "name" {
+  value = terraform_data.this.output
+}
+
+output "token" {
+  value     = var.token
+  sensitive = true
+}

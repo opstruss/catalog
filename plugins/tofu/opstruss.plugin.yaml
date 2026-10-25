@@ -1,0 +1,28 @@
+name: tofu
+description: OpenTofu modules
+requires: [tofu, jq]
+env: [TF_LOG]
+state: tool
+inputs:
+  dir:
+    type: string
+    description: The directory of the root module, relative to the file of the unit
+    default: .
+  vars:
+    type: object
+    description: Values of the variables of the module
+    default: {}
+outputs: tool
+tasks:
+  plan:
+    run: [./tofu.sh, plan]
+  up:
+    run: [./tofu.sh, up]
+    stop: {signal: SIGINT, grace: 10m}
+  down:
+    run: [./tofu.sh, down]
+    stop: {signal: SIGINT, grace: 10m}
+  status:
+    run: [./tofu.sh, status]
+  exec:
+    run: [./tofu.sh, exec]

@@ -1,0 +1,47 @@
+# up applies only the plan that was approved: with the digest of another
+# plan in OPSTRUSS_DIGEST it fails and leaves the state as it was, as
+# Terraform refuses a stale saved plan. The script runs here as OpsTruss
+# runs it, with the files and variables of the program contract.
+
+env HOME=$WORK/home
+env OPSTRUSS_PLUGIN_DIR=$CATALOG/plugins/tofu
+env OPSTRUSS_INPUTS=$WORK/inputs.json
+env OPSTRUSS_ADDRESS=default/infra
+env OPSTRUSS_TEMP=$WORK/temp
+env OPSTRUSS_WORKDIR=$WORK/work
+env OPSTRUSS_STATE_DIR=$WORK/state
+env OPSTRUSS_PLAN=$WORK/plan.json
+env OPSTRUSS_OUTPUT=$WORK/output.json
+env OPSTRUSS_RESULT=$WORK/result.json
+mkdir temp work state
+
+exec $OPSTRUSS_PLUGIN_DIR/tofu.sh plan
+exec jq -c '{changes, exact}' plan.json
+stdout '^{"changes":\[{"resource":"terraform_data.this","action":"create"},{"resource":"output.name","action":"create"}\],"exact":true}$'
+
+env OPSTRUSS_DIGEST=sha256:stale
+! exec $OPSTRUSS_PLUGIN_DIR/tofu.sh up
+stderr '^the plan of the module changed since it was approved; plan again$'
+! exists state/terraform.tfstate
+
+# With the digest of its plan, up applies it.
+exec sh -c 'OPSTRUSS_DIGEST=$(jq -r .digest plan.json) exec "$OPSTRUSS_PLUGIN_DIR/tofu.sh" up'
+exists state/terraform.tfstate
+exec jq -c . output.json result.json
+stdout '^{"name":"one"}$'
+stdout '^{"changed":true,"sensitive":\[\]}$'
+
+-- inputs.json --
+{"dir": "infra", "vars": {"name": "one"}}
+-- infra/main.tf --
+variable "name" {
+  type = string
+}
+
+resource "terraform_data" "this" {
+  input = var.name
+}
+
+output "name" {
+  value = terraform_data.this.output
+}

@@ -1,0 +1,47 @@
+# opstruss exec <unit> -- <program> runs the program in the module with
+# tofu set up for the unit: the data of its init, and its state and
+# variables through TF_CLI_ARGS_<command>, so tofu state list, tofu output,
+# and tofu plan see what up made. The project lives in a directory with a
+# space, which the paths in TF_CLI_ARGS keep.
+
+env HOME=$WORK/home
+cd 'my project'
+symlink catalog -> $CATALOG
+
+exec opstruss up --yes
+exec opstruss exec infra -- tofu state list
+stdout '^terraform_data.this$'
+exec opstruss exec infra -- tofu output -raw name
+stdout '^one$'
+exec opstruss exec infra -- tofu plan -no-color
+stdout 'No changes.'
+exec opstruss exec infra -- sh -c 'echo "$PWD"; echo "$TF_DATA_DIR"'
+stdout '/my project/infra$'
+stdout '/my project/.opstruss/work/default/infra/data$'
+
+# tofu show takes no -state; the state of the unit is a file.
+exec opstruss exec infra -- sh -c 'tofu show -no-color "$OPSTRUSS_STATE_DIR/terraform.tfstate"'
+stdout 'resource "terraform_data" "this"'
+
+-- my project/opstruss.yaml --
+name: app
+uses:
+  tofu: ./catalog/plugins/tofu
+units:
+  infra:
+    uses: tofu
+    with:
+      dir: ./infra
+      vars: {name: one}
+-- my project/infra/main.tf --
+variable "name" {
+  type = string
+}
+
+resource "terraform_data" "this" {
+  input = var.name
+}
+
+output "name" {
+  value = terraform_data.this.output
+}
