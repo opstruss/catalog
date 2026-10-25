@@ -30,11 +30,17 @@ fail() {
 }
 
 # input prints the input named $1: a string as it is, null or a missing
-# input as nothing, and any other value, false among them, as JSON.
+# input as nothing, and any other value, false among them, as JSON. A
+# program outside a run, such as a watch hook, has only INPUT_<NAME>,
+# with - as _, which holds the same text.
 input() {
-	jq -r --arg name "$1" \
-		'.[$name] | if type == "string" then . elif . == null then "" else tojson end' \
-		"$OPSTRUSS_INPUTS"
+	if [ -n "${OPSTRUSS_INPUTS:-}" ]; then
+		jq -r --arg name "$1" \
+			'.[$name] | if type == "string" then . elif . == null then "" else tojson end' \
+			"$OPSTRUSS_INPUTS"
+		return
+	fi
+	printenv "INPUT_$(printf '%s' "$1" | tr 'a-z-' 'A-Z_')" || true
 }
 
 # result writes the result of the call: jq -n with the arguments, for
