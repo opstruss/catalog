@@ -17,8 +17,8 @@ stdout '^app running$'
 exec opstruss exec web -- sh -c 'echo "project $COMPOSE_PROJECT_NAME"'
 stdout '^project default-web-[0-9a-f]+$'
 
-exec opstruss down --yes
-stdout '^default/web: down: done$'
+exec opstruss destroy --yes
+stdout '^default/web: destroy: done$'
 
 -- opstruss.yaml --
 name: app

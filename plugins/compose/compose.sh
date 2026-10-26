@@ -1,6 +1,6 @@
 #!/bin/sh
 # Docker Compose projects as units. The project of a unit is named after
-# its state key, so it stays when the unit moves, and down needs only that
+# its state key, so it stays when the unit moves, and destroy needs only that
 # name, not the Compose file.
 #
 # shellcheck source-path=SCRIPTDIR source=../../lib/opstruss.sh
@@ -75,9 +75,9 @@ cmd_up() {
 	jq '{changed: (.changes | length > 0)}' "$work/plan.json" >"$OPSTRUSS_RESULT"
 }
 
-# down takes the project down by its name, from the work directory, so the
+# destroy takes the project down by its name, from the work directory, so the
 # Compose file may be gone.
-cmd_down() {
+cmd_destroy() {
 	workdir
 	p=$(project) || fail "the unit has no state key"
 	cd "$work" || exit

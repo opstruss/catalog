@@ -1,7 +1,7 @@
 # A root module as a unit. plan lists what tofu plan would change, as an
 # exact plan; up applies that plan and hands the outputs of the module on;
 # a plan without changes runs nothing; a changed variable updates the
-# resource; down destroys what the state holds. A credential reaches the
+# resource; destroy removes what the state holds. A credential reaches the
 # module as a sensitive variable, from a secret, and stays out of the log
 # and the records.
 
@@ -41,7 +41,7 @@ stdout '"name": "two"'
 exec opstruss status
 stdout '^default/infra \| terraform_data.this$'
 
-exec opstruss down --yes
+exec opstruss destroy --yes
 stdout '^default/infra \| Destroy complete! Resources: 1 destroyed.$'
 ! exists .opstruss/state/default/infra/tool
 

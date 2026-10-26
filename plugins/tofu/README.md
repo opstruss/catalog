@@ -47,7 +47,7 @@ The outputs of the module, by name. Sensitive outputs stay sensitive.
 |---|---|
 | `plan` | `tofu plan` into a plan file; the plan lists the resources and outputs that change, and is exact |
 | `up` | `tofu apply` of the plan file of `plan`, or of a new plan; fails when it is not the plan that was approved |
-| `down` | `tofu destroy` |
+| `destroy` | `tofu destroy` |
 | `status` | `tofu state list` |
 | `exec` | the program of `opstruss exec`, with tofu set up for the unit |
 

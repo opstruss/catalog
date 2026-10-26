@@ -19,8 +19,8 @@ tasks:
   up:
     run: [./tofu.sh, up]
     stop: {signal: SIGINT, grace: 10m}
-  down:
-    run: [./tofu.sh, down]
+  destroy:
+    run: [./tofu.sh, destroy]
     stop: {signal: SIGINT, grace: 10m}
   status:
     run: [./tofu.sh, status]

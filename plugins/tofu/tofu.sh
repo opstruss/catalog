@@ -102,7 +102,7 @@ cmd_up() {
 	}' "$tmp/outputs.json" >"$OPSTRUSS_RESULT"
 }
 
-cmd_down() {
+cmd_destroy() {
 	setup
 	tofu -chdir="$dir" destroy -auto-approve -input=false ${nocolor:+"$nocolor"} -state="$state" -var-file="$vars"
 }

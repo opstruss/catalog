@@ -43,7 +43,7 @@ as variables that Compose interpolates, such as `image: ${IMAGE}`.
 |---|---|
 | `plan` | compares the config hash of each service with the label of its container: create, replace, or delete |
 | `up` | `docker compose up -d --wait --remove-orphans` |
-| `down` | `docker compose down --remove-orphans` |
+| `destroy` | `docker compose down --remove-orphans` |
 | `status` | `docker compose ps -a` |
 | `logs` | `docker compose logs`; with `follow: true`, follows them |
 | `config` | `docker compose config`: the Compose file as Compose reads it |
@@ -55,7 +55,7 @@ plan does not promise.
 ## Project
 
 The Compose project of a unit is named after its state key, such as
-`default-web-7f3a9c1e`, so it stays when the unit moves, and `down` needs
+`default-web-7f3a9c1e`, so it stays when the unit moves, and `destroy` needs
 only that name, not the Compose file.
 
 ## Docker host
@@ -70,7 +70,7 @@ uses:
     pass: [DOCKER_CONTEXT]
 ```
 
-The record keeps a fingerprint of what a unit passes, so `down` from
+The record keeps a fingerprint of what a unit passes, so `destroy` from
 another Docker host stops. `DOCKER_CONFIG` names the directory of the
 configuration of the Docker CLI, with its credentials and contexts, when
 it is not `~/.docker`.
