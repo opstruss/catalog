@@ -1,104 +1,134 @@
 #!/bin/sh
 # Docker Compose projects as units. The project of a unit is named after
 # its state key, so it stays when the unit moves, and destroy needs only that
-# name, not the Compose file.
+# name, not the Compose files.
+#
+# The files, profiles, and env files of the unit reach Compose through its
+# own variables, COMPOSE_FILE, COMPOSE_PROFILES, and COMPOSE_ENV_FILES, so
+# every docker compose of a call reads the same project, and so does the
+# program of opstruss exec.
 #
 # shellcheck source-path=SCRIPTDIR source=../../lib/opstruss.sh
 . "$OPSTRUSS_PLUGIN_DIR/../../lib/opstruss.sh"
 
 # Compose prints color unless OpsTruss shows the output of the run without.
-ansi=always
-[ -z "${NO_COLOR:-}" ] || ansi=never
+ansi=never
+if color; then
+	ansi=always
+fi
 
-# workdir sets work, where a call keeps its files.
-workdir() {
-	if [ -n "${OPSTRUSS_WORKDIR:-}" ]; then
-		work=$OPSTRUSS_WORKDIR
-	else
-		work=$(mktemp -d "$OPSTRUSS_TEMP/compose.XXXXXX")
-	fi
+# setup checks the inputs, makes $tmp, and gives Compose the files,
+# profiles, and env files of the unit.
+setup() {
+	known_keys args up down
+	scratch
+	paths files >"$tmp/files"
+	paths env_files >"$tmp/env-files"
+	words profiles >"$tmp/profiles"
+	COMPOSE_FILE=$(joined "$tmp/files" : files)
+	COMPOSE_ENV_FILES=$(joined "$tmp/env-files" , env_files)
+	COMPOSE_PROFILES=$(joined "$tmp/profiles" , profiles)
+	export COMPOSE_FILE COMPOSE_ENV_FILES COMPOSE_PROFILES
+	# Without files, Compose looks for its default file, as without -f.
+	[ -n "$COMPOSE_FILE" ] || unset COMPOSE_FILE
 }
 
-# project prints the Compose project of the unit: its state key in the
-# letters that Compose takes. A unit without a record has no state key yet.
+# joined prints the lines of the file $1 joined by $2, on which Compose
+# splits the list of the input $3, so no item may hold it.
+joined() {
+	while IFS= read -r item; do
+		case $item in
+		*"$2"*) fail "Compose splits $3 on $2, which $item holds" ;;
+		esac
+	done <"$1"
+	paste -s -d "$2" "$1"
+}
+
+# project sets p to the Compose project of the unit: its state key in the
+# letters that Compose takes, or nothing for a unit without a record yet.
 project() {
-	[ -n "${OPSTRUSS_STATE_KEY:-}" ] || return 1
-	printf '%s' "$OPSTRUSS_STATE_KEY" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_-' '-'
+	p=$(printf '%s' "${OPSTRUSS_STATE_KEY:-}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_-' '-')
 }
 
-# inspect compares the services of the Compose file with the containers of
-# the project, by the config hash that Compose labels each with, into
-# $work/plan.json, and sets its digest.
+# inspect compares the services of the Compose files with the containers
+# of the project, by the config hash that Compose labels each with, into
+# $tmp/plan.json, and sets its digest.
 inspect() {
-	file=$(input file)
-	docker compose -f "$file" config --hash '*' >"$work/want"
-	: >"$work/have"
-	if p=$(project); then
+	docker compose config --hash '*' >"$tmp/want"
+	: >"$tmp/have"
+	project
+	if [ -n "$p" ]; then
 		docker ps -a --filter "label=com.docker.compose.project=$p" \
-			--format '{{.Label "com.docker.compose.service"}} {{.Label "com.docker.compose.config-hash"}}' >"$work/have"
+			--format '{{.Label "com.docker.compose.service"}} {{.Label "com.docker.compose.config-hash"}}' >"$tmp/have"
 	fi
-	jq -nS --rawfile want "$work/want" --rawfile have "$work/have" '
+	jq -nS --rawfile want "$tmp/want" --rawfile have "$tmp/have" '
 		def table: split("\n") | map(select(. != "") | split(" ") | {key: .[0], value: .[1]}) | from_entries;
 		($want | table) as $w | ($have | table) as $h | {
 			want: $w,
 			changes: ([$w | keys[] | select($h[.] == null) | {action: "create", resource: .}]
 				+ [$w | keys[] | select($h[.] != null and $h[.] != $w[.]) | {action: "replace", resource: .}]
 				+ [$h | keys[] | select($w[.] == null) | {action: "delete", resource: .}])
-		}' >"$work/plan.json"
-	digest="sha256:$(sha256 "$work/plan.json")"
+		}' >"$tmp/plan.json"
+	digest="sha256:$(sha256 "$tmp/plan.json")"
 }
 
 cmd_plan() {
-	workdir
+	setup
 	inspect
 	jq --arg digest "$digest" '{
 		changes,
 		outputs: (if any(.changes[]; .action != "replace") then ["services"] else [] end),
 		digest: $digest,
 		exact: false
-	}' "$work/plan.json" >"$OPSTRUSS_PLAN"
+	}' "$tmp/plan.json" >"$OPSTRUSS_PLAN"
 }
 
 # Without a TTY Compose prints the lines of the network twice, also with
 # --progress plain; the plugin leaves the output of Compose as it is, and
 # --ansi always keeps that output in lines.
 cmd_up() {
-	workdir
+	setup
 	inspect
-	if [ -n "${OPSTRUSS_DIGEST:-}" ] && [ "$digest" != "$OPSTRUSS_DIGEST" ]; then
-		fail "the Compose project changed since its plan was approved; plan again"
-	fi
-	p=$(project) || fail "the unit has no state key"
-	docker compose --ansi "$ansi" -p "$p" -f "$file" up -d --wait --remove-orphans
-	docker compose -p "$p" -f "$file" config --services >"$work/services"
-	jq -Rn '{services: [inputs | select(. != "")]}' "$work/services" >"$OPSTRUSS_OUTPUT"
-	jq '{changed: (.changes | length > 0)}' "$work/plan.json" >"$OPSTRUSS_RESULT"
+	approved "$digest" || fail "the Compose project changed since its plan was approved; plan again"
+	project
+	[ -n "$p" ] || fail "the unit has no state key"
+	words args.up >"$tmp/up.args"
+	run_with "$tmp/up.args" docker compose --ansi "$ansi" -p "$p" up -d --wait --remove-orphans
+	docker compose -p "$p" config --services >"$tmp/services"
+	services=$(jq -cRn '[inputs | select(. != "")]' "$tmp/services")
+	output services "$services"
+	jq '{changed: (.changes | length > 0)}' "$tmp/plan.json" >"$OPSTRUSS_RESULT"
 }
 
-# destroy takes the project down by its name, from the work directory, so the
-# Compose file may be gone.
+# destroy takes the project down by its name, from a directory without the
+# Compose files, which may be gone.
 cmd_destroy() {
-	workdir
-	p=$(project) || fail "the unit has no state key"
-	cd "$work" || exit
-	docker compose --ansi "$ansi" -p "$p" down --remove-orphans
+	known_keys args up down
+	scratch
+	project
+	[ -n "$p" ] || fail "the unit has no state key"
+	words args.down >"$tmp/down.args"
+	cd "$tmp" || exit
+	run_with "$tmp/down.args" docker compose --ansi "$ansi" -p "$p" down --remove-orphans
 }
 
 cmd_status() {
-	workdir
-	if p=$(project); then
-		cd "$work" || exit
-		docker compose --ansi "$ansi" -p "$p" ps -a
-	else
+	scratch
+	project
+	if [ -z "$p" ]; then
 		echo "no project yet"
+		return
 	fi
+	cd "$tmp" || exit
+	docker compose --ansi "$ansi" -p "$p" ps -a
 }
 
 cmd_logs() {
-	workdir
-	p=$(project) || fail "the unit has no state key"
+	scratch
+	project
+	[ -n "$p" ] || fail "the unit has no state key"
 	follow=$(input follow)
-	cd "$work" || exit
+	cd "$tmp" || exit
 	if [ "$follow" = true ]; then
 		exec docker compose --ansi "$ansi" -p "$p" logs --follow
 	fi
@@ -106,22 +136,18 @@ cmd_logs() {
 }
 
 cmd_config() {
-	file=$(input file)
-	exec docker compose --ansi "$ansi" -f "$file" config
+	setup
+	exec docker compose --ansi "$ansi" config
 }
 
-# exec runs the program of opstruss exec with Compose set to the file and
-# the project of the unit, as docker compose ps. A unit without a record
-# has no project yet, so Compose names it after the directory.
+# exec runs the program of opstruss exec with Compose set to the files,
+# profiles, env files, and project of the unit, as docker compose ps. A unit
+# without a record has no project yet, so Compose names it after the
+# directory.
 cmd_exec() {
-	[ $# -gt 0 ] || fail "usage: opstruss exec <unit> -- <program> [argument...]"
-	file=$(input file)
-	case $file in
-	/*) COMPOSE_FILE=$file ;;
-	*) COMPOSE_FILE=$PWD/$file ;;
-	esac
-	export COMPOSE_FILE
-	if p=$(project); then
+	setup
+	project
+	if [ -n "$p" ]; then
 		COMPOSE_PROJECT_NAME=$p
 		export COMPOSE_PROJECT_NAME
 	else

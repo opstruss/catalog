@@ -10,8 +10,31 @@ inputs:
     default: .
   vars:
     type: object
-    description: Values of the variables of the module
+    description: Values of the variables of the module, which win over those of var_files
     default: {}
+  var_files:
+    type: array
+    items: {type: string}
+    description: Files of values of the variables, relative to the file of the unit; a later file wins
+    default: []
+  parallelism:
+    type: integer
+    minimum: 1
+    description: How many operations tofu runs at once in plan, apply, and destroy
+  args:
+    type: object
+    description: Arguments that tofu gets after those of the plugin, by command
+    default: {}
+    properties:
+      init:
+        type: array
+        items: {type: string}
+      plan:
+        type: array
+        items: {type: string}
+      apply:
+        type: array
+        items: {type: string}
 outputs: tool
 tasks:
   plan:

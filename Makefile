@@ -11,17 +11,19 @@ export PATH := $(abspath $(dir $(OPSTRUSS))):$(shell mise bin-paths | tr '\n' ':
 DOCKER_CONFIG ?= $(HOME)/.docker
 export DOCKER_CONFIG
 
-# The tests of compose need a Docker daemon, which the macOS runners of
-# GitHub lack.
+# The tests of compose that start containers need a Docker daemon, which
+# the macOS runners of GitHub lack; inputs.txtar needs only the docker CLI.
 TESTS := $(wildcard tests/*/*.txtar)
 DOCKER := $(shell docker info >/dev/null 2>&1 && echo yes)
 ifneq ($(DOCKER),yes)
-SKIPPED := $(filter tests/compose/%,$(TESTS))
+SKIPPED := $(filter-out tests/compose/inputs.txtar,$(filter tests/compose/%,$(TESTS)))
 TESTS := $(filter-out $(SKIPPED),$(TESTS))
 endif
 
+# check-extra-masked-returns finds a command whose failure a $(...) in an
+# argument hides, as cmd "$(sha256 file)".
 lint:
-	shellcheck $(wildcard lib/*.sh plugins/*/*.sh)
+	shellcheck -o check-extra-masked-returns $(wildcard lib/*.sh plugins/*/*.sh examples/*/*.sh)
 	actionlint
 
 test:

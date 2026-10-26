@@ -1,0 +1,68 @@
+# The files, profiles, and env files of a unit reach Compose: plan reads
+# the services of both files and of the profile, and the program of
+# opstruss exec gets the same project through the variables of Compose,
+# with absolute paths, so docker compose config puts in the value of the
+# env file. A key of args that no command takes stops plan. None of this
+# starts a container, so no Docker daemon is needed, only its CLI. The
+# project passes DOCKER_CONFIG, as in lifecycle.txtar.
+
+[!exec:docker] skip 'needs the docker CLI'
+
+env HOME=$WORK/home
+cd 'my project'
+symlink catalog -> $CATALOG
+
+exec opstruss plan
+stdout '^default/web: will run: new; plan: create app, create debug$'
+
+exec opstruss exec web -- sh -c 'echo "$COMPOSE_FILE"; echo "$COMPOSE_PROFILES"; echo "$COMPOSE_ENV_FILES"'
+stdout '^/.*/my project/compose.yaml:/.*/my project/compose.debug.yaml$'
+stdout '^debug$'
+stdout '^/.*/my project/app.env$'
+
+exec opstruss exec web -- docker compose config
+stdout 'GREETING: from the env file'
+stdout '^  debug:$'
+
+cp typo.yaml opstruss.yaml
+! exec opstruss plan
+stdout 'the input args has upp, which is not one of: up down'
+
+-- my project/opstruss.yaml --
+name: app
+uses:
+  compose:
+    source: ./catalog/plugins/compose
+    pass: [DOCKER_CONFIG]
+units:
+  web:
+    uses: compose
+    with:
+      files: [./compose.yaml, ./compose.debug.yaml]
+      profiles: [debug]
+      env_files: [./app.env]
+-- my project/typo.yaml --
+name: app
+uses:
+  compose:
+    source: ./catalog/plugins/compose
+    pass: [DOCKER_CONFIG]
+units:
+  web:
+    uses: compose
+    with:
+      args:
+        upp: [--build]
+-- my project/compose.yaml --
+services:
+  app:
+    image: busybox:1.37
+    environment:
+      GREETING: ${GREETING:-nobody}
+-- my project/compose.debug.yaml --
+services:
+  debug:
+    image: busybox:1.37
+    profiles: [debug]
+-- my project/app.env --
+GREETING=from the env file

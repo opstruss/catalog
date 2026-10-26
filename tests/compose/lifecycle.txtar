@@ -55,12 +55,12 @@ units:
   web:
     uses: compose
     with:
-      file: ./compose.yaml
+      files: [./compose.yaml]
     env:
       GREETING: ${{ inputs.greeting }}
 tasks:
   config:
-    compose.config: {file: ./compose.yaml}
+    compose.config: {files: [./compose.yaml]}
 -- gone.yaml --
 name: app
 uses:

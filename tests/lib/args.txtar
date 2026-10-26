@@ -1,0 +1,39 @@
+# words prints each string of a list input on a line, after a prefix, and
+# reads a list in an object input by a dotted name; paths makes relative
+# paths absolute from the working directory; run_with gives each line to a
+# command as one argument, as written; a string with a line break stops the
+# script. known_keys stops a script at a key that the plugin does not take.
+
+env OPSTRUSS_INPUTS=$WORK/inputs.json
+cd 'unit dir'
+
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; words args.plan >plan.args; run_with plan.args printf "[%s]\n" plan'
+cmp stdout ../plan.txt
+
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; paths files -f='
+stdout '^-f=/.*/unit dir/a.yaml$'
+stdout '^-f=/abs/b.yaml$'
+
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; words missing; words args.missing; echo end'
+cmp stdout ../end.txt
+
+! exec sh -c '. "$CATALOG/lib/opstruss.sh"; words broken; echo not reached'
+stderr 'an item of the input broken holds a line break'
+! stdout 'not reached'
+
+! exec sh -c '. "$CATALOG/lib/opstruss.sh"; known_keys args init plan apply'
+stderr '^the input args has plann, which is not one of: init plan apply$'
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; known_keys args init plan plann apply; known_keys missing up'
+
+-- inputs.json --
+{"args": {"plan": ["-var=a=b c", "*", "$(echo run)", "", "it's"], "plann": []}, "files": ["a.yaml", "/abs/b.yaml"], "broken": ["one\ntwo"]}
+-- plan.txt --
+[plan]
+[-var=a=b c]
+[*]
+[$(echo run)]
+[]
+[it's]
+-- end.txt --
+end
+-- unit dir/.keep --

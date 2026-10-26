@@ -3,10 +3,32 @@ description: Docker Compose projects
 requires: [docker, jq]
 env: [DOCKER_HOST, DOCKER_CONTEXT, DOCKER_CONFIG]
 inputs:
-  file:
-    type: string
-    description: The Compose file, relative to the file of the unit
-    default: compose.yaml
+  files:
+    type: array
+    items: {type: string}
+    description: The Compose files, relative to the file of the unit; a later file overrides an earlier one
+    default: [compose.yaml]
+  profiles:
+    type: array
+    items: {type: string}
+    description: The profiles whose services the project starts too
+    default: []
+  env_files:
+    type: array
+    items: {type: string}
+    description: Files of the variables that Compose puts into the Compose files, relative to the file of the unit
+    default: []
+  args:
+    type: object
+    description: Arguments that docker compose gets after those of the plugin, by command
+    default: {}
+    properties:
+      up:
+        type: array
+        items: {type: string}
+      down:
+        type: array
+        items: {type: string}
 outputs:
   services:
     type: array
@@ -26,7 +48,7 @@ tasks:
         default: false
     run: [./compose.sh, logs]
   config:
-    description: Print the Compose file as Compose reads it
+    description: Print the Compose files of the unit as Compose reads them
     run: [./compose.sh, config]
   exec:
     run: [./compose.sh, exec]

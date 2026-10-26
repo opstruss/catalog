@@ -1,0 +1,107 @@
+# The inputs of a unit shape how tofu runs. var_files give values that
+# vars win over; args add arguments after those of the plugin, each one as
+# written, for plan and for apply, whose plan file stays last; parallelism
+# reaches plan, apply, and destroy. opstruss exec gives the files of
+# var_files too. args for init reach tofu init, and a key of args that no
+# command takes stops plan. The project lives in a directory with a space.
+
+env HOME=$WORK/home
+cd 'my project'
+symlink catalog -> $CATALOG
+
+exec opstruss up --yes
+stdout '^default/infra: up: done$'
+exec opstruss outputs --json
+stdout '"name": "from vars"'
+stdout '"region": "from the file"'
+stdout '"note": "a \$\(b\) \*"'
+
+exec opstruss exec infra -- sh -c 'echo "$TF_CLI_ARGS_plan"'
+stdout '-var-file=''/.*/my project/common.tfvars'' -var-file='''
+
+exec opstruss destroy --yes
+stdout '^default/infra: destroy: done$'
+
+cp init.yaml opstruss.yaml
+! exec opstruss plan
+stdout 'flag provided but not defined: -bogus'
+
+cp typo.yaml opstruss.yaml
+! exec opstruss plan
+stdout 'the input args has plann, which is not one of: init plan apply'
+
+-- my project/opstruss.yaml --
+name: app
+outputs:
+  name: ${{ units.infra.outputs.name }}
+  region: ${{ units.infra.outputs.region }}
+  note: ${{ units.infra.outputs.note }}
+uses:
+  tofu: ./catalog/plugins/tofu
+units:
+  infra:
+    uses: tofu
+    with:
+      dir: ./infra
+      var_files: [./common.tfvars]
+      vars: {name: from vars}
+      parallelism: 2
+      args:
+        plan: ["-var=note=a $(b) *"]
+        apply: [-compact-warnings]
+-- my project/init.yaml --
+name: app
+uses:
+  tofu: ./catalog/plugins/tofu
+units:
+  infra:
+    uses: tofu
+    with:
+      dir: ./infra
+      var_files: [./common.tfvars]
+      args:
+        init: [-bogus]
+-- my project/typo.yaml --
+name: app
+uses:
+  tofu: ./catalog/plugins/tofu
+units:
+  infra:
+    uses: tofu
+    with:
+      dir: ./infra
+      var_files: [./common.tfvars]
+      args:
+        plann: [-refresh=false]
+-- my project/common.tfvars --
+name   = "from the file"
+region = "from the file"
+-- my project/infra/main.tf --
+variable "name" {
+  type = string
+}
+
+variable "region" {
+  type = string
+}
+
+variable "note" {
+  type    = string
+  default = ""
+}
+
+resource "terraform_data" "this" {
+  input = "${var.name} ${var.region} ${var.note}"
+}
+
+output "name" {
+  value = var.name
+}
+
+output "region" {
+  value = var.region
+}
+
+output "note" {
+  value = var.note
+}

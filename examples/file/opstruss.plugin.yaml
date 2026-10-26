@@ -1,0 +1,24 @@
+name: file
+description: A text file, as the example of a plugin
+requires: [jq]
+inputs:
+  path:
+    type: string
+    description: The file, relative to the file of the unit
+    required: true
+  content:
+    type: string
+    description: The text of the file
+    default: ""
+outputs:
+  sha256:
+    type: string
+tasks:
+  plan:
+    run: [./file.sh, plan]
+  up:
+    run: [./file.sh, up]
+  destroy:
+    run: [./file.sh, destroy]
+  status:
+    run: [./file.sh, status]

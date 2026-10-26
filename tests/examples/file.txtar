@@ -1,0 +1,42 @@
+# A text file as a unit: plan lists what up would write, as an exact plan;
+# up writes it and gives its hash; a plan without changes runs nothing; a
+# changed input updates the file; destroy removes it.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+exec opstruss plan
+stdout '^default/motd: will run: new; plan: create ./motd.txt$'
+
+exec opstruss up --yes
+stdout '^default/motd: up: done$'
+cmp motd.txt want.txt
+exec opstruss outputs --json
+stdout '"sha256": "[0-9a-f]{64}"'
+
+exec opstruss plan
+stdout '^default/motd: unchanged$'
+
+exec opstruss up --yes --input greeting=hi
+stdout 'plan: update ./motd.txt$'
+
+exec opstruss destroy --yes
+stdout '^default/motd: destroy: done$'
+! exists motd.txt
+
+-- opstruss.yaml --
+name: app
+inputs:
+  greeting: {type: string, default: hello}
+outputs:
+  sha256: ${{ units.motd.outputs.sha256 }}
+uses:
+  file: ./catalog/examples/file
+units:
+  motd:
+    uses: file
+    with:
+      path: ./motd.txt
+      content: "${{ inputs.greeting }}, world\n"
+-- want.txt --
+hello, world

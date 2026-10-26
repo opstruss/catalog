@@ -1,0 +1,35 @@
+# The args of a unit reach docker compose after the arguments of the
+# plugin, by command: --scale for up starts two containers of a service,
+# and down takes --timeout. The project passes DOCKER_CONFIG, as in
+# lifecycle.txtar.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+exec opstruss up --yes
+stdout '^default/web: up: done$'
+exec opstruss exec web -- docker compose ps -q app
+stdout -count=2 '^[0-9a-f]+$'
+
+exec opstruss destroy --yes
+stdout '^default/web: destroy: done$'
+
+-- opstruss.yaml --
+name: app
+uses:
+  compose:
+    source: ./catalog/plugins/compose
+    pass: [DOCKER_CONFIG]
+units:
+  web:
+    uses: compose
+    with:
+      args:
+        up: [--scale, app=2]
+        down: [--timeout, "1"]
+-- compose.yaml --
+services:
+  app:
+    image: busybox:1.37
+    init: true
+    command: [sleep, "3600"]

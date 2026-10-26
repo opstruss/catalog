@@ -1,5 +1,5 @@
 # opstruss exec <unit> -- <program> runs the program with Compose set to
-# the file and the project of the unit, so docker compose ps lists its
+# the files and the project of the unit, so docker compose ps lists its
 # containers. A unit without a record has no project yet, and Compose
 # names one after the directory. The project passes DOCKER_CONFIG, as in
 # lifecycle.txtar.

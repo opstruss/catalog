@@ -36,6 +36,7 @@ uses:
 | `plugins/<name>/` | a plugin: `opstruss.plugin.yaml` and its scripts, with the components it ships in `components/` |
 | `components/<name>/` | a component that composes several plugins |
 | `lib/` | helpers that the scripts of the plugins load |
+| `examples/<name>/` | plugins that show how one is written, for its authors rather than for projects |
 | `opstruss.catalog.yaml` | marks the root of the catalog and shares `lib` |
 | `tests/<name>/` | the tests of a package |
 
@@ -57,13 +58,17 @@ uses:
 
 ## Develop
 
+[CONTRIBUTING.md](CONTRIBUTING.md) shows how a plugin is written, with
+the helpers of `lib/`, and how it is tested.
+
 `mise install` installs the tools that the scripts are checked and tested
 with, opstruss among them. `make lint` checks the scripts and the
 workflows. `make test` runs the
 [testscript](https://pkg.go.dev/github.com/rogpeppe/go-internal/testscript)
 files of `tests/` against the tools that the plugins run; the tests of
-compose need a Docker daemon and are skipped without one.
-`make test OPSTRUSS=<path>` tests another build of opstruss.
+compose that start containers need a Docker daemon and are skipped without
+one. `make test TESTS=<file>` runs one test, and `make test OPSTRUSS=<path>`
+tests another build of opstruss.
 
 ## License
 

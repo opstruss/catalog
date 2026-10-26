@@ -1,0 +1,55 @@
+# output writes a block that OpsTruss reads by the type of the output, and
+# ends it with a line that the value does not hold; unchanged writes the
+# result of a call that changed nothing; approved passes the digest of the
+# approved plan, or any digest without one; input_file keeps the line
+# breaks at the end of a string; color is off with NO_COLOR; scratch makes
+# a directory that goes when the script ends, also by a signal.
+
+env OPSTRUSS_INPUTS=$WORK/inputs.json
+env OPSTRUSS_OUTPUT=$WORK/output
+env OPSTRUSS_RESULT=$WORK/result
+env OPSTRUSS_TEMP=$WORK/temp
+mkdir temp
+
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; output count 3; output note "$(printf "x\nEOF\ny=z")"; unchanged'
+cmp output output.txt
+cmp result result.txt
+
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; approved sha256:a && echo any'
+stdout '^any$'
+env OPSTRUSS_DIGEST=sha256:a
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; approved sha256:a && echo same; approved sha256:b || echo other'
+stdout '^same$'
+stdout '^other$'
+
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; input_file text out'
+cmp out text.txt
+
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; color && echo color'
+stdout '^color$'
+env NO_COLOR=1
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; color || echo plain'
+stdout '^plain$'
+
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; scratch; [ -d "$tmp" ] && echo made'
+stdout '^made$'
+! exec sh -c '. "$CATALOG/lib/opstruss.sh"; scratch; kill -TERM $$; sleep 5'
+exec find temp -mindepth 1
+! stdout .
+
+-- inputs.json --
+{"text": "two\nlines\n"}
+-- output.txt --
+count<<EOF
+3
+EOF
+note<<EOF_
+x
+EOF
+y=z
+EOF_
+-- result.txt --
+{"changed": false}
+-- text.txt --
+two
+lines
