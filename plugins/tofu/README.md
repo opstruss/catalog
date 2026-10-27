@@ -166,7 +166,7 @@ uses:
 
 ## Lock file
 
-`.terraform.lock.hcl` belongs to the module, as in Terraform: the first
+`.terraform.lock.hcl` belongs to the module, as when tofu runs alone: the first
 `up` writes it next to the module, and its user commits it. The units that
 use the module, as the instances of a `for_each`, share it. A module that
 cannot be written, as one from a remote source, needs a lock file that
