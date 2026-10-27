@@ -116,7 +116,8 @@ encrypted file, one variable per line:
 
 ```yaml
 secrets:
-  infra: {sops: secrets/${{ stack }}.env}
+  infra:
+    sops: secrets/${{ stack }}.env
 units:
   dns:
     uses: tofu
