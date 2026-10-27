@@ -1,7 +1,7 @@
 name: tofu
 description: OpenTofu modules
 requires: [tofu, jq]
-env: [TF_LOG]
+env: ['*']
 state: tool
 inputs:
   dir:

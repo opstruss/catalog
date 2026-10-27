@@ -78,7 +78,7 @@ units:
 
 | Task | What it does |
 |---|---|
-| `plan` | compares the config hash of each service with the label of its container: create, replace, or delete |
+| `plan` | compares the config hash and the state of each service with its container: create, replace, update, or delete |
 | `up` | `docker compose up -d --wait --remove-orphans` |
 | `destroy` | `docker compose down --remove-orphans` |
 | `status` | `docker compose ps -a` |
@@ -89,23 +89,48 @@ units:
 The plan is not exact: `up` applies what Compose decides then, which the
 plan does not promise.
 
+A service whose container is `created`, `dead`, or exited with a code
+other than 0, as after a crash, `docker stop`, or a reboot without a
+restart policy, is an update, which `up` starts again. One that exited
+with 0 ran as it should, as a migration does, and stays unchanged, and so
+does one that is `paused` or `restarting`, which `up -d` leaves as it is.
+
+`--wait` takes a service that exits with 0 only when another service
+depends on it with `condition: service_completed_successfully`, as an app
+on its migration; on its own, `up` fails with `exited (0)`:
+
+```yaml
+services:
+  migrate:
+    image: example/app
+    command: [migrate]
+  app:
+    image: example/app
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+```
+
 ## Project
 
 The Compose project of a unit is named after its state key, such as
 `default-web-7f3a9c1e`, so it stays when the unit moves, and `destroy` needs
 only that name, not the Compose files.
 
-## Docker host
+## Variables
 
-The plugin asks for `DOCKER_HOST`, `DOCKER_CONTEXT`, and `DOCKER_CONFIG`,
-which the project grants with `pass:`:
+The Compose files read variables of their own, as `${TAG}`, and so does
+Docker, as `DOCKER_HOST`, so the plugin asks for every variable, and
+`pass:` of the project says which reach Compose; without `pass:`, none
+does:
 
 ```yaml
 uses:
   compose:
     source: github.com/opstruss/catalog/plugins/compose@v1
-    pass: [DOCKER_CONTEXT]
+    pass: [DOCKER_CONTEXT, TAG]
 ```
+
+Compose reads a `.env` file of its own through `env_files: [.env]`.
 
 The record keeps a fingerprint of what a unit passes, so `destroy` from
 another Docker host stops. `DOCKER_CONFIG` names the directory of the

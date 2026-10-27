@@ -19,10 +19,13 @@ release assets of a compiled plugin.
   the providers in the module, and an `exec` hook that sets up `tofu` for
   the unit. The inputs `var_files` and `parallelism` reach every command
   that takes them, and `args` adds arguments to `init`, `plan`, and
-  `apply`.
+  `apply`. It asks for every variable, so `pass:` alone says which
+  reach the module and its providers.
 - `compose` plugin: Docker Compose projects as units, named after their
   state key, with `logs` and `config` tasks and an `exec` hook that sets
   the files, profiles, env files, and project of the unit for
   `docker compose`. The inputs `files`, `profiles`, and `env_files` reach
   every `docker compose` of the unit, and `args` adds arguments to `up`
-  and `down`.
+  and `down`. A service whose container stopped with an error, or never
+  started, is an update that `up` starts again. It asks for every
+  variable, so `pass:` alone says which reach Compose.

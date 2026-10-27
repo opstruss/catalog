@@ -92,15 +92,60 @@ The outputs of the module, by name. Sensitive outputs stay sensitive.
 | `status` | `tofu state list` |
 | `exec` | the program of `opstruss exec`, with tofu set up for the unit |
 
-## Credentials
+## Credentials and variables
 
-The plugin asks for no credential variables. A provider gets its
-credentials from the variables of the module, as `cloudflare_api_token`
-above, or from the files of its default chain under `HOME`, such as
-`~/.aws/credentials`. A secret with `env:` reads a variable of the
-environment, as in CI.
+A module and its providers read variables of their own, such as
+`AWS_PROFILE`, `CLOUDFLARE_API_TOKEN`, `TF_VAR_<name>`, or `TF_LOG`, so the
+plugin asks for every variable, and `pass:` of the project says which
+reach tofu; without `pass:`, none does. Variables in a `.env` file reach
+OpsTruss through mise, with `_.file = ".env"` under `[env]` of
+`mise.toml`, through direnv, with `dotenv` in `.envrc`, or through the
+shell, with `set -a; . ./.env; set +a`:
 
-`TF_LOG` reaches tofu when the project passes it: `pass: [TF_LOG]`.
+```yaml
+uses:
+  tofu:
+    source: github.com/opstruss/catalog/plugins/tofu@v1
+    pass: [AWS_PROFILE, AWS_REGION, CLOUDFLARE_*, TF_VAR_*]
+```
+
+A provider also finds credentials in the files of its default chain under
+`HOME`, such as `~/.aws/credentials`, and in the variables of the module,
+as `cloudflare_api_token` above. Secrets of each stack come from an
+encrypted file, one variable per line:
+
+```yaml
+secrets:
+  infra: {sops: secrets/${{ stack }}.env}
+units:
+  dns:
+    uses: tofu
+    with: {dir: ./dns}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.infra.CLOUDFLARE_API_TOKEN }}
+```
+
+The record keeps a fingerprint of what a unit passes, so a plan with
+another `AWS_PROFILE` stops rather than destroy in another account later.
+A credential that changes every session, as `AWS_SESSION_TOKEN` from
+`aws-vault exec` or OIDC in CI, would stop every plan that way; it goes
+through `secrets:` and `env:` instead, and a new value runs the unit
+again:
+
+```yaml
+secrets:
+  aws_key: {env: AWS_ACCESS_KEY_ID}
+  aws_secret: {env: AWS_SECRET_ACCESS_KEY}
+  aws_session: {env: AWS_SESSION_TOKEN}
+uses:
+  tofu:
+    source: github.com/opstruss/catalog/plugins/tofu@v1
+    pass: [AWS_REGION]
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.aws_key }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.aws_secret }}
+      AWS_SESSION_TOKEN: ${{ secrets.aws_session }}
+```
 
 ## State
 

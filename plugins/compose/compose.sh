@@ -52,21 +52,33 @@ project() {
 
 # inspect compares the services of the Compose files with the containers
 # of the project, by the config hash that Compose labels each with, into
-# $tmp/plan.json, and sets its digest.
+# $tmp/plan.json, and sets its digest. A service whose container is
+# created, dead, or exited with a code other than 0 is an update, which up
+# -d starts again; one that exited with 0 ran as it should, as a migration
+# does, and paused or restarting is what up -d leaves as it is. Containers
+# of docker compose run are not the services.
 inspect() {
 	docker compose config --hash '*' >"$tmp/want"
 	: >"$tmp/have"
 	project
 	if [ -n "$p" ]; then
-		docker ps -a --filter "label=com.docker.compose.project=$p" \
-			--format '{{.Label "com.docker.compose.service"}} {{.Label "com.docker.compose.config-hash"}}' >"$tmp/have"
+		docker ps -aq --filter "label=com.docker.compose.project=$p" \
+			--filter "label=com.docker.compose.oneoff=False" >"$tmp/ids"
+		if [ -s "$tmp/ids" ]; then
+			xargs docker inspect --format '{{index .Config.Labels "com.docker.compose.service"}} {{index .Config.Labels "com.docker.compose.config-hash"}} {{.State.Status}} {{.State.ExitCode}}' \
+				<"$tmp/ids" >"$tmp/have"
+		fi
 	fi
 	jq -nS --rawfile want "$tmp/want" --rawfile have "$tmp/have" '
-		def table: split("\n") | map(select(. != "") | split(" ") | {key: .[0], value: .[1]}) | from_entries;
-		($want | table) as $w | ($have | table) as $h | {
+		def rows: split("\n") | map(select(. != "") | split(" "));
+		def table: map({key: .[0], value: .[1]}) | from_entries;
+		($want | rows | table) as $w | ($have | rows) as $rows | ($rows | table) as $h
+		| ($rows | map(select(.[2] == "created" or .[2] == "dead" or (.[2] == "exited" and .[3] != "0")) | .[0])) as $stopped
+		| {
 			want: $w,
 			changes: ([$w | keys[] | select($h[.] == null) | {action: "create", resource: .}]
 				+ [$w | keys[] | select($h[.] != null and $h[.] != $w[.]) | {action: "replace", resource: .}]
+				+ [$w | keys[] | select($h[.] == $w[.]) | select(. as $s | $stopped | index($s)) | {action: "update", resource: .}]
 				+ [$h | keys[] | select($w[.] == null) | {action: "delete", resource: .}])
 		}' >"$tmp/plan.json"
 	digest="sha256:$(sha256 "$tmp/plan.json")"
@@ -77,7 +89,7 @@ cmd_plan() {
 	inspect
 	jq --arg digest "$digest" '{
 		changes,
-		outputs: (if any(.changes[]; .action != "replace") then ["services"] else [] end),
+		outputs: (if any(.changes[]; .action == "create" or .action == "delete") then ["services"] else [] end),
 		digest: $digest,
 		exact: false
 	}' "$tmp/plan.json" >"$OPSTRUSS_PLAN"
