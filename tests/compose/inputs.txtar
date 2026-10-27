@@ -2,9 +2,10 @@
 # the services of both files and of the profile, and the program of
 # opstruss exec gets the same project through the variables of Compose,
 # with absolute paths, so docker compose config puts in the value of the
-# env file. A key of args that no command takes stops plan. None of this
-# starts a container, so no Docker daemon is needed, only its CLI. The
-# project passes DOCKER_CONFIG, as in lifecycle.txtar.
+# env file. A key of args that no command takes is refused before plan,
+# with a suggestion. None of this starts a container, so no Docker daemon
+# is needed, only its CLI. The project passes DOCKER_CONFIG, as in
+# lifecycle.txtar.
 
 [!exec:docker] skip 'needs the docker CLI'
 
@@ -26,7 +27,7 @@ stdout '^  debug:$'
 
 cp typo.yaml opstruss.yaml
 ! exec opstruss plan
-stdout 'the input args has upp, which is not one of: up down'
+stderr 'with.args: unknown key upp; did you mean up\?$'
 
 -- my project/opstruss.yaml --
 name: app

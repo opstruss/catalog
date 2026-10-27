@@ -3,7 +3,8 @@
 # written, for plan and for apply, whose plan file stays last; parallelism
 # reaches plan, apply, and destroy. opstruss exec gives the files of
 # var_files too. args for init reach tofu init, and a key of args that no
-# command takes stops plan. The project lives in a directory with a space.
+# command takes is refused before plan, with a suggestion. The project
+# lives in a directory with a space.
 
 env HOME=$WORK/home
 cd 'my project'
@@ -28,7 +29,7 @@ stdout 'flag provided but not defined: -bogus'
 
 cp typo.yaml opstruss.yaml
 ! exec opstruss plan
-stdout 'the input args has plann, which is not one of: init plan apply'
+stderr 'with.args: unknown key plann; did you mean plan\?$'
 
 -- my project/opstruss.yaml --
 name: app

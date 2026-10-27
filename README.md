@@ -12,8 +12,21 @@ Official plugins and components for
 
 ## Use
 
-A project declares a package in `uses:`, by its path in this repository and
-a Git ref:
+A project declares the catalog once in `uses:`, with a Git ref, and names
+its packages through that declaration:
+
+```yaml
+uses:
+  cat: github.com/opstruss/catalog@v1
+  tofu: cat.tofu          # an alias, which follows the pin of cat
+units:
+  web:
+    uses: cat.compose
+  network:
+    uses: tofu
+```
+
+A package can also be declared alone, by its path in this repository:
 
 ```yaml
 uses:
