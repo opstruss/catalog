@@ -12,8 +12,6 @@ release assets of a compiled plugin.
 
 ### Added
 
-- `tofu` and `compose` print in color unless OpsTruss sets `NO_COLOR`,
-  which it does when it shows the output of a run without color.
 - `tofu` plugin: OpenTofu root modules as units, with exact plans, the
   state of the module kept with the state of OpsTruss, the lock file of
   the providers in the module, and an `exec` hook that sets up `tofu` for
@@ -28,4 +26,7 @@ release assets of a compiled plugin.
   every `docker compose` of the unit, and `args` adds arguments to `up`
   and `down`. A service whose container stopped with an error, or never
   started, is an update that `up` starts again. It asks for every
-  variable, so `pass:` alone says which reach Compose.
+  variable, so `pass:` alone says which reach Compose, and stops with
+  what is missing when `docker` has no Compose v2.
+- `tofu` and `compose` print in color unless OpsTruss sets `NO_COLOR`,
+  which it does when it shows the output of a run without color.

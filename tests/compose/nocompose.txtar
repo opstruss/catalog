@@ -1,0 +1,27 @@
+# A docker without its Compose plugin stops each program of the plugin
+# with what is missing, rather than with the usage of docker.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 755 bin/docker
+symlink catalog -> $CATALOG
+
+! exec opstruss plan
+stdout '^default/web \| compose needs Docker Compose v2, the command docker compose; install the Compose plugin of Docker'
+! stdout 'unknown flag'
+
+-- bin/docker --
+#!/bin/sh
+echo "docker: unknown command: docker $1" >&2
+exit 1
+-- opstruss.yaml --
+name: app
+uses:
+  compose: ./catalog/plugins/compose
+units:
+  web:
+    uses: compose
+-- compose.yaml --
+services:
+  app:
+    image: busybox:1.37

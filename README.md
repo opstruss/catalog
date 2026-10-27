@@ -5,10 +5,10 @@ Official plugins and components for
 
 ## Plugins
 
-| Plugin | Units of |
-|---|---|
-| [tofu](plugins/tofu) | OpenTofu root modules |
-| [compose](plugins/compose) | Docker Compose projects |
+| Plugin | Units of | Needs in `PATH` |
+|---|---|---|
+| [tofu](plugins/tofu) | OpenTofu root modules | `tofu`, `jq` |
+| [compose](plugins/compose) | Docker Compose projects | `docker` with Compose v2, `jq` |
 
 ## Use
 
@@ -47,7 +47,7 @@ uses:
 | Path | Content |
 |---|---|
 | `plugins/<name>/` | a plugin: `opstruss.plugin.yaml` and its scripts, with the components it ships in `components/` |
-| `components/<name>/` | a component that composes several plugins |
+| `components/<name>/` | a component that composes several plugins, when the catalog has one |
 | `lib/` | helpers that the scripts of the plugins load |
 | `examples/<name>/` | plugins that show how one is written, for its authors rather than for projects |
 | `opstruss.catalog.yaml` | marks the root of the catalog and shares `lib` |

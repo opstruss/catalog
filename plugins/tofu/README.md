@@ -12,14 +12,14 @@ Needs `tofu` and `jq` in `PATH`.
 
 ```yaml
 uses:
-  tofu: github.com/opstruss/catalog/plugins/tofu@v1
+  cat: github.com/opstruss/catalog@v1
 
 secrets:
   cloudflare: {env: CLOUDFLARE_API_TOKEN}
 
 units:
   dns:
-    uses: tofu
+    uses: cat.tofu
     with:
       dir: ./dns
       vars:
@@ -28,7 +28,9 @@ units:
 ```
 
 Other units read the outputs of the module as
-`${{ units.dns.outputs.<name> }}`.
+`${{ units.dns.outputs.<name> }}`. The plugin can also be declared
+alone, as `tofu: github.com/opstruss/catalog/plugins/tofu@v1`, for units
+that use it as `tofu`.
 
 ## Inputs
 
@@ -49,7 +51,7 @@ else goes through `args`, after the arguments of the plugin:
 ```yaml
 units:
   dns:
-    uses: tofu
+    uses: cat.tofu
     with:
       dir: ./dns
       var_files: [./prod.tfvars]
@@ -104,8 +106,9 @@ shell, with `set -a; . ./.env; set +a`:
 
 ```yaml
 uses:
+  cat: github.com/opstruss/catalog@v1
   tofu:
-    source: github.com/opstruss/catalog/plugins/tofu@v1
+    source: cat.tofu
     pass: [AWS_PROFILE, AWS_REGION, CLOUDFLARE_*, TF_VAR_*]
 ```
 
@@ -139,8 +142,9 @@ secrets:
   aws_secret: {env: AWS_SECRET_ACCESS_KEY}
   aws_session: {env: AWS_SESSION_TOKEN}
 uses:
+  cat: github.com/opstruss/catalog@v1
   tofu:
-    source: github.com/opstruss/catalog/plugins/tofu@v1
+    source: cat.tofu
     pass: [AWS_REGION]
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.aws_key }}

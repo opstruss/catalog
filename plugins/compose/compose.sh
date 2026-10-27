@@ -11,6 +11,11 @@
 # shellcheck source-path=SCRIPTDIR source=../../lib/opstruss.sh
 . "$OPSTRUSS_PLUGIN_DIR/../../lib/opstruss.sh"
 
+# docker without its Compose plugin reads the flags of compose as its own,
+# such as --hash, so say what is missing before any command.
+docker compose version >/dev/null 2>&1 ||
+	fail "compose needs Docker Compose v2, the command docker compose; install the Compose plugin of Docker, such as the package docker-compose-plugin"
+
 # Compose prints color unless OpsTruss shows the output of the run without.
 ansi=never
 if color; then

@@ -11,11 +11,11 @@ Needs `docker` with Compose v2 and `jq` in `PATH`.
 
 ```yaml
 uses:
-  compose: github.com/opstruss/catalog/plugins/compose@v1
+  cat: github.com/opstruss/catalog@v1
 
 units:
   web:
-    uses: compose
+    uses: cat.compose
     with:
       files: [./compose.yaml]
     env:
@@ -23,7 +23,10 @@ units:
 ```
 
 Values of other units reach the Compose files through `env:` of the unit,
-as variables that Compose interpolates, such as `image: ${IMAGE}`.
+as variables that Compose interpolates, such as `image: ${IMAGE}`. The
+plugin can also be declared alone, as
+`compose: github.com/opstruss/catalog/plugins/compose@v1`, for units that
+use it as `compose`.
 
 ## Inputs
 
@@ -44,7 +47,7 @@ goes through `args`, after the arguments of the plugin:
 ```yaml
 units:
   web:
-    uses: compose
+    uses: cat.compose
     with:
       files: [./compose.yaml, ./compose.prod.yaml]
       profiles: [monitoring]
@@ -110,12 +113,6 @@ services:
       migrate: {condition: service_completed_successfully}
 ```
 
-## Project
-
-The Compose project of a unit is named after its state key, such as
-`default-web-7f3a9c1e`, so it stays when the unit moves, and `destroy` needs
-only that name, not the Compose files.
-
 ## Variables
 
 The Compose files read variables of their own, as `${TAG}`, and so does
@@ -125,8 +122,9 @@ does:
 
 ```yaml
 uses:
+  cat: github.com/opstruss/catalog@v1
   compose:
-    source: github.com/opstruss/catalog/plugins/compose@v1
+    source: cat.compose
     pass: [DOCKER_CONTEXT, TAG]
 ```
 
@@ -136,6 +134,12 @@ The record keeps a fingerprint of what a unit passes, so `destroy` from
 another Docker host stops. `DOCKER_CONFIG` names the directory of the
 configuration of the Docker CLI, with its credentials and contexts, when
 it is not `~/.docker`.
+
+## Project
+
+The Compose project of a unit is named after its state key, such as
+`default-web-7f3a9c1e`, so it stays when the unit moves, and `destroy` needs
+only that name, not the Compose files.
 
 ## exec
 
