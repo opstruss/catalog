@@ -13,9 +13,9 @@ symlink catalog -> $CATALOG
 exec opstruss up --yes
 stdout '^default/infra: up: done$'
 exec opstruss outputs --json
-stdout '"name": "from vars"'
-stdout '"region": "from the file"'
-stdout '"note": "a \$\(b\) \*"'
+stdout '"name": \{\s+"value": "from vars"'
+stdout '"region": \{\s+"value": "from the file"'
+stdout '"note": \{\s+"value": "a \$\(b\) \*"'
 
 exec opstruss exec infra -- sh -c 'echo "$TF_CLI_ARGS_plan"'
 stdout '-var-file=''/.*/my project/common.tfvars'' -var-file='''

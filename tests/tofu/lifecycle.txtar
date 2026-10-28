@@ -20,7 +20,7 @@ stdout '^default/infra \| Apply complete! Resources: 1 added, 0 changed, 0 destr
 stdout '^default/infra: up: done$'
 exists .opstruss/state/default/infra/tool/terraform.tfstate
 exec opstruss outputs --json
-stdout '"name": "one"'
+stdout '"name": \{\s+"value": "one"'
 ! stdout 'secret-one'
 
 # The files that hold values, as the variables and the plan file, live in
@@ -36,7 +36,7 @@ stdout '^default/infra: unchanged$'
 exec opstruss up --yes --input name=two
 stdout 'plan: update terraform_data.this, update output.name$'
 exec opstruss outputs --json
-stdout '"name": "two"'
+stdout '"name": \{\s+"value": "two"'
 
 exec opstruss status
 stdout '^default/infra \| terraform_data.this$'

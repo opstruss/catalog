@@ -12,7 +12,7 @@ exec opstruss up --yes
 stdout '^default/motd: up: done$'
 cmp motd.txt want.txt
 exec opstruss outputs --json
-stdout '"sha256": "[0-9a-f]{64}"'
+stdout '"sha256": \{\s+"value": "[0-9a-f]{64}"'
 
 exec opstruss plan
 stdout '^default/motd: unchanged$'
