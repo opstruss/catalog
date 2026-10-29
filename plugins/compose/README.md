@@ -86,11 +86,28 @@ units:
 | `destroy` | `docker compose down --remove-orphans` |
 | `status` | `docker compose ps -a` |
 | `logs` | `docker compose logs`; with `follow: true`, follows them |
-| `config` | `docker compose config`: the Compose files of the unit as Compose reads them |
+| `config` | `docker compose config`: the Compose files that it is given, as Compose reads them; a step calls it (below) |
 | `exec` | the program of `opstruss exec`, with Compose set to the files, profiles, env files, and project of the unit |
 
 The plan is not exact: `up` applies what Compose decides then, which the
 plan does not promise.
+
+A step calls `config` through a name of the plugin in `uses:`, with the
+files as a unit gives them:
+
+```yaml
+uses:
+  cat: github.com/opstruss/catalog@v1
+  compose: cat.compose
+tasks:
+  check:
+    steps:
+      - compose.config: {files: [./compose.yaml]}
+```
+
+Compose then names the project after the directory. For the files and the
+project of a unit, `opstruss exec web -- docker compose config` runs
+Compose as the unit does ([exec](#exec)).
 
 A service whose container is `created`, `dead`, or exited with a code
 other than 0, as after a crash, `docker stop`, or a reboot without a

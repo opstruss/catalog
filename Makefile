@@ -12,12 +12,12 @@ DOCKER_CONFIG ?= $(HOME)/.docker
 export DOCKER_CONFIG
 
 # The tests of compose that start containers need a Docker daemon, which
-# the macOS runners of GitHub lack; inputs.txtar needs only the docker CLI,
-# and nocompose.txtar not even that.
+# the macOS runners of GitHub lack; inputs.txtar and config.txtar need only
+# the docker CLI, and nocompose.txtar not even that.
 TESTS := $(wildcard tests/*/*.txtar)
 DOCKER := $(shell docker info >/dev/null 2>&1 && echo yes)
 ifneq ($(DOCKER),yes)
-SKIPPED := $(filter-out tests/compose/inputs.txtar tests/compose/nocompose.txtar,$(filter tests/compose/%,$(TESTS)))
+SKIPPED := $(filter-out tests/compose/inputs.txtar tests/compose/config.txtar tests/compose/nocompose.txtar,$(filter tests/compose/%,$(TESTS)))
 TESTS := $(filter-out $(SKIPPED),$(TESTS))
 endif
 

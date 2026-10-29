@@ -1,0 +1,28 @@
+# A step calls the task config of compose through a name of the plugin in
+# uses:, with the files it gives, as the README shows. It starts no
+# container, so it needs only the docker CLI. The project passes
+# DOCKER_CONFIG, as in lifecycle.txtar.
+
+[!exec:docker] skip 'needs the docker CLI'
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+exec opstruss check
+stdout 'image: busybox:1.37$'
+
+-- opstruss.yaml --
+name: app
+uses:
+  cat: ./catalog
+  compose:
+    source: cat.compose
+    pass: [DOCKER_CONFIG]
+tasks:
+  check:
+    steps:
+      - compose.config: {files: [./compose.yaml]}
+-- compose.yaml --
+services:
+  app:
+    image: busybox:1.37
