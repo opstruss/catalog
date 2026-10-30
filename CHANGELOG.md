@@ -13,12 +13,13 @@ release assets of a compiled plugin.
 ### Added
 
 - `tofu` plugin: OpenTofu root modules as units, with exact plans, the
-  state of the module kept with the state of OpsTruss, the lock file of
-  the providers in the module, and an `exec` hook that sets up `tofu` for
-  the unit. The inputs `var_files` and `parallelism` reach every command
-  that takes them, and `args` adds arguments to `init`, `plan`, and
-  `apply`. It asks for every variable, so `pass:` alone says which
-  reach the module and its providers.
+  state of the module kept with the state of OpsTruss, or where a backend
+  of the module names, the lock file of the providers in the module, and
+  an `exec` hook that sets up `tofu` for the unit. The inputs
+  `var_files` and `parallelism` reach every command that takes them, and
+  `args` adds arguments to `init`, `plan`, and `apply`. It asks for
+  every variable, so `pass:` alone says which reach the module and its
+  providers.
 - `compose` plugin: Docker Compose projects as units, named after their
   state key, with `logs` and `config` tasks and an `exec` hook that sets
   the files, profiles, env files, and project of the unit for

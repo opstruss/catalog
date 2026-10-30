@@ -67,9 +67,10 @@ units:
   `"-var=note=a b"` keeps its space.
 - tofu reads the variables in this order, and a later value wins:
   `var_files`, `vars`, then a `-var` in `args.plan`.
-- The plugin gives `-chdir`, `-input`, `-state`, `-out`, the plan file of
-  `apply`, `-auto-approve`, `-no-color`, and `-lockfile` for a module that
-  cannot be written; `args` does not give them.
+- The plugin gives `-chdir`, `-input`, `-reconfigure`, `-state` or the
+  `path` of `backend "local" {}` ([State](#state)), `-out`, the plan file
+  of `apply`, `-auto-approve`, `-no-color`, and `-lockfile` for a module
+  that cannot be written; `args` does not give them.
 - A flag in `args.plan`, as `-target` or `-replace`, holds for every plan
   of the unit until it is removed.
 - `destroy` takes no `args`: a destroy that leaves resources, as with
@@ -154,10 +155,29 @@ uses:
 
 ## State
 
-- The state of the module is `terraform.tfstate` in the tool directory of
-  the unit, which moves and locks with the state of OpsTruss, so the
-  module has no backend block. Only the local backend of OpsTruss keeps it
-  yet.
+The module says where its state lives:
+
+| The module has | The state is |
+|---|---|
+| no backend block | `terraform.tfstate` in the tool directory of the unit, given as `-state` |
+| `backend "local" {}`, without a path | the same file, given as the path of the backend |
+| a backend that names its place, as a `path`, or a `bucket` and `key` | there; OpsTruss does not move, lock, or remove it |
+
+```hcl
+terraform {
+  backend "local" {}
+}
+```
+
+- The tool directory moves and locks with the state of OpsTruss, and a
+  destroy removes it. Only the local backend of OpsTruss keeps it yet.
+- A place that the module names serves one unit. The instances of a
+  `for_each` would share it, so their plan stops, unless `args.init` gives
+  each its own, as `-backend-config=path=${{ each.key }}.tfstate`.
+- A unit whose state is in the tool directory, and whose module comes to
+  name a place, stops at plan and prints the commands that move the
+  state there: `tofu state push` through `opstruss exec`, then
+  `opstruss state rm <unit> --tool`.
 - The state holds the values of the module as tofu writes them, sensitive
   ones among them, in plain text.
 - The work directory of the unit keeps only what `tofu init` fetches. The
@@ -180,8 +200,9 @@ opstruss exec dns -- tofu plan
 ```
 
 The program runs in the module with the data of the unit's `tofu init`,
-and the state and the variables of the unit, from `var_files` and `vars`,
-through `TF_CLI_ARGS_<command>`; `args` and `parallelism` stay with the
-plan and the up of the unit. `tofu show` and `tofu state pull` take no
-`-state`; the state of the unit is
-`tofu show "$OPSTRUSS_STATE_DIR/terraform.tfstate"`.
+the backend of the module, and the variables of the unit, from
+`var_files` and `vars`, through `TF_CLI_ARGS_<command>`; without a backend
+block, the state of the unit goes there as `-state` too. `args` and
+`parallelism` stay with the plan and the up of the unit. `tofu show` and
+`tofu state pull` take no `-state`; without a backend block, the state of
+the unit is `tofu show "$OPSTRUSS_STATE_DIR/terraform.tfstate"`.

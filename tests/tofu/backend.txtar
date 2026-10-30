@@ -1,0 +1,100 @@
+# The module says where its state lives. backend "local" {} without a
+# path keeps it in the tool directory of the unit, as without a backend
+# block; a backend that names its own path keeps it there, and the tool
+# directory holds none. The instances of a unit share such a place only
+# when args.init gives each its own, and a unit whose state is still in
+# OpsTruss stops until the state is moved there.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+# backend "local" {}: the tool directory.
+exec opstruss up --yes partial
+stdout '^default/partial: up: done$'
+exists .opstruss/state/default/partial/tool/terraform.tfstate
+! exists partial/terraform.tfstate
+exec opstruss plan partial
+stdout '^default/partial: unchanged$'
+
+# A path of its own: the state is there, and the tool directory has none.
+exec opstruss up --yes own
+stdout '^default/own: up: done$'
+exists own/own.tfstate
+! exists .opstruss/state/default/own/tool/terraform.tfstate
+exec opstruss status own
+stdout '^default/own \| terraform_data.this$'
+
+# The instances of a unit would share that path, unless args.init gives
+# each its own.
+! exec opstruss plan shared
+stdout 'every instance of the unit would share it'
+exec opstruss up --yes apart
+exists own/a.tfstate
+exists own/b.tfstate
+
+# A unit with its state in OpsTruss, whose module comes to name a path,
+# stops until the state is moved there.
+exec opstruss up --yes moving
+exists .opstruss/state/default/moving/tool/terraform.tfstate
+cp backend.tf moving/backend.tf
+! exec opstruss plan moving
+stdout 'the unit still has a state in OpsTruss'
+exec opstruss exec moving -- tofu state push $WORK/.opstruss/state/default/moving/tool/terraform.tfstate
+exec opstruss state rm moving --tool
+exec opstruss plan moving
+stdout '^default/moving: unchanged$'
+exists moving/moving.tfstate
+
+-- opstruss.yaml --
+name: app
+uses:
+  tofu: ./catalog/plugins/tofu
+units:
+  partial:
+    uses: tofu
+    with: {dir: ./partial}
+  own:
+    uses: tofu
+    with: {dir: ./own}
+  shared:
+    for_each: [a, b]
+    uses: tofu
+    with: {dir: ./own}
+  apart:
+    for_each: [a, b]
+    uses: tofu
+    with:
+      dir: ./own
+      args:
+        init: ["-backend-config=path=${{ each.key }}.tfstate"]
+  moving:
+    uses: tofu
+    with: {dir: ./moving}
+-- partial/main.tf --
+terraform {
+  backend "local" {}
+}
+
+resource "terraform_data" "this" {
+  input = "partial"
+}
+-- own/main.tf --
+terraform {
+  backend "local" {
+    path = "own.tfstate"
+  }
+}
+
+resource "terraform_data" "this" {
+  input = "own"
+}
+-- moving/main.tf --
+resource "terraform_data" "this" {
+  input = "moving"
+}
+-- backend.tf --
+terraform {
+  backend "local" {
+    path = "moving.tfstate"
+  }
+}
