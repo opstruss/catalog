@@ -116,6 +116,19 @@ owned() {
 	esac
 }
 
+# alone stops plan and up where the module was applied by tofu alone,
+# without a backend that names a place: its state is terraform.tfstate in
+# the module, which the unit does not read, so a unit without a state yet
+# would plan to make everything again.
+alone() {
+	if [ "$owner" != opstruss ] || [ -e "$state" ] || [ ! -s "$dir/terraform.tfstate" ]; then
+		return 0
+	fi
+	unit=${OPSTRUSS_ADDRESS#*/}
+	stack=${OPSTRUSS_ADDRESS%%/*}
+	fail "the module in $dir has a state of its own, terraform.tfstate, which the unit does not read, so its plan would make everything again; move it to the unit with: opstruss exec '$unit' --stack $stack -- sh -c 'cat terraform.tfstate > \"\$OPSTRUSS_STATE_DIR/terraform.tfstate\"', or keep it in the module with backend \"local\" { path = \"terraform.tfstate\" }"
+}
+
 # inspect reads the plan file into the changes that a plan of OpsTruss
 # lists, in $tmp/changes.json, and their digest.
 inspect() {
@@ -141,6 +154,7 @@ plan_tofu() {
 cmd_plan() {
 	setup
 	owned
+	alone
 	plan_tofu
 	inspect
 	jq --arg digest "$digest" '
@@ -161,6 +175,7 @@ cmd_plan() {
 cmd_up() {
 	setup
 	owned
+	alone
 	[ -f "$planfile" ] || plan_tofu
 	inspect
 	if ! approved "$digest"; then

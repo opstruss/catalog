@@ -1,0 +1,91 @@
+# A module that tofu applied alone keeps its state in terraform.tfstate
+# next to it, which a unit without a backend block does not read: plan and
+# up stop rather than make everything again. The state moves to the unit
+# with cat through opstruss exec, also from a backup that cannot be
+# written, or stays in the module with a backend that names it; either way
+# the first plan creates nothing.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+exec tofu -chdir=alone init -input=false -no-color
+exec tofu -chdir=alone apply -auto-approve -input=false -no-color
+exists alone/terraform.tfstate
+
+# The unit has no state yet, and the module has one of its own.
+! exec opstruss plan alone
+stdout 'has a state of its own, terraform.tfstate, which the unit does not read'
+stdout 'opstruss exec ''alone'' --stack default -- sh -c ''cat terraform.tfstate > "\$OPSTRUSS_STATE_DIR/terraform.tfstate"'''
+! exec opstruss up --yes alone
+stdout 'has a state of its own'
+
+# Moved to the unit with cat: the plan creates nothing, and up writes the
+# record.
+exec opstruss exec alone --stack default -- sh -c 'cat terraform.tfstate > "$OPSTRUSS_STATE_DIR/terraform.tfstate"'
+exec opstruss plan alone
+stdout '^default/alone: will run: new$'
+! stdout 'create'
+exec opstruss up --yes alone
+stdout '^default/alone: up: done, nothing changed$'
+exec opstruss status alone
+stdout '^default/alone \| terraform_data.this$'
+
+# Kept in the module, with a backend that names it: the tool directory
+# holds none.
+exec tofu -chdir=kept init -input=false -no-color
+exec tofu -chdir=kept apply -auto-approve -input=false -no-color
+cp backend.tf kept/backend.tf
+exec opstruss plan kept
+stdout '^default/kept: will run: new$'
+! stdout 'create'
+exec opstruss up --yes kept
+stdout '^default/kept: up: done, nothing changed$'
+exists kept/terraform.tfstate
+! exists .opstruss/state/default/kept/tool/terraform.tfstate
+exec opstruss status kept
+stdout '^default/kept \| terraform_data.this$'
+
+# A backup that cannot be written: cat makes a new file that tofu can lock.
+exec tofu -chdir=backup init -input=false -no-color
+exec tofu -chdir=backup apply -auto-approve -input=false -no-color
+mv backup/terraform.tfstate saved.tfstate
+chmod 0444 saved.tfstate
+exec opstruss exec backup -- sh -c 'cat "$1" > "$OPSTRUSS_STATE_DIR/terraform.tfstate"' sh $WORK/saved.tfstate
+exec opstruss plan backup
+stdout '^default/backup: will run: new$'
+! stdout 'create'
+exec opstruss up --yes backup
+stdout '^default/backup: up: done, nothing changed$'
+
+-- opstruss.yaml --
+name: app
+uses:
+  tofu: ./catalog/plugins/tofu
+units:
+  alone:
+    uses: tofu
+    with: {dir: ./alone}
+  kept:
+    uses: tofu
+    with: {dir: ./kept}
+  backup:
+    uses: tofu
+    with: {dir: ./backup}
+-- alone/main.tf --
+resource "terraform_data" "this" {
+  input = "alone"
+}
+-- kept/main.tf --
+resource "terraform_data" "this" {
+  input = "kept"
+}
+-- backup/main.tf --
+resource "terraform_data" "this" {
+  input = "backup"
+}
+-- backend.tf --
+terraform {
+  backend "local" {
+    path = "terraform.tfstate"
+  }
+}

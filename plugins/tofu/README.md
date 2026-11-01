@@ -153,6 +153,25 @@ uses:
       AWS_SESSION_TOKEN: ${{ secrets.aws_session }}
 ```
 
+## Provider cache
+
+Each unit runs `tofu init` in a work directory of its own, so the first
+plan of each unit downloads its providers again. A cache in the CLI
+configuration of the machine downloads each provider once for every unit
+and project:
+
+```hcl
+# ~/.tofurc
+plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"
+```
+
+The directory must exist, as `mkdir -p ~/.terraform.d/plugin-cache`.
+OpenTofu 1.10 and later lock the cache, so the plans of units that run at
+once share it safely on a local disk. `TF_PLUGIN_CACHE_DIR` through
+`pass:` does the same, but the record of each unit keeps a fingerprint of
+it, so a machine with another path, as CI, stops at plan with
+`context changed`.
+
 ## State
 
 The module says where its state lives:
@@ -183,6 +202,35 @@ terraform {
 - The work directory of the unit keeps only what `tofu init` fetches. The
   variables and the plan file live in the temporary directory of the run,
   which ends with it.
+
+## Existing state
+
+A module that already has a state, from tofu or Terraform run alone,
+becomes a unit without making anything again:
+
+- A module whose backend names its place, as `backend "s3"` or
+  `backend "local" { path = "…" }`, keeps it there, and nothing moves.
+- A module without a backend block keeps its state in the tool directory
+  of the unit, so the state goes there once. `cat` writes a new file,
+  which tofu can lock also when the old file is a read-only backup:
+
+  ```sh
+  opstruss exec dns --stack prod -- sh -c 'cat "$1" > "$OPSTRUSS_STATE_DIR/terraform.tfstate"' sh /backup/dns.tfstate
+  ```
+
+- Each instance of a `for_each` has a state of its own: copy one to each
+  instance, or give each its own path with `-backend-config=path=…` in
+  `args.init`.
+
+Then the first `opstruss plan` of the unit lists no resource to create,
+and `opstruss up` writes its record. Keep the old file as a backup; the
+unit no longer reads it.
+
+A module without a backend block that tofu applied alone has its state in
+`terraform.tfstate` next to it, which the unit does not read. Until the
+unit has a state, its plan and up stop and print both ways: move that
+file to the unit with `opstruss exec` and `cat`, or keep it in the module
+with `backend "local" { path = "terraform.tfstate" }`.
 
 ## Lock file
 
