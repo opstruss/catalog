@@ -21,7 +21,8 @@ release assets of a compiled plugin.
   every variable, so `pass:` alone says which reach the module and its
   providers.
 - `compose` plugin: Docker Compose projects as units, named after their
-  state key, with `logs` and `config` tasks and an `exec` hook that sets
+  state key, or after the input `project`, which takes over a project that
+  runs already, with `logs` and `config` tasks and an `exec` hook that sets
   the files, profiles, env files, and project of the unit for
   `docker compose`. The inputs `files`, `profiles`, and `env_files` reach
   every `docker compose` of the unit, and `args` adds arguments to `up`

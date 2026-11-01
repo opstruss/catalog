@@ -1,7 +1,8 @@
 #!/bin/sh
 # Docker Compose projects as units. The project of a unit is named after
 # its state key, so it stays when the unit moves, and destroy needs only that
-# name, not the Compose files.
+# name, not the Compose files. The input project names it instead, as for a
+# project that already runs, which the unit then takes over.
 #
 # The files, profiles, and env files of the unit reach Compose through its
 # own variables, COMPOSE_FILE, COMPOSE_PROFILES, and COMPOSE_ENV_FILES, so
@@ -49,10 +50,35 @@ joined() {
 	paste -s -d "$2" "$1"
 }
 
-# project sets p to the Compose project of the unit: its state key in the
-# letters that Compose takes, or nothing for a unit without a record yet.
+# project sets p to the Compose project of the unit: the input project, or
+# its state key in the letters that Compose takes, or nothing for a unit
+# with neither, as one without a record yet.
 project() {
+	p=$(input project)
+	[ -z "$p" ] || return 0
 	p=$(printf '%s' "${OPSTRUSS_STATE_KEY:-}" | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9_-' '-')
+}
+
+# others warns when the project of the unit has no container while its
+# Compose files run as another project: up would start a second one beside
+# it, with volumes of its own, where the unit could take it over. The
+# label of Compose holds the absolute paths of the files, joined by commas.
+# Without a Docker daemon there is nothing to warn about, and the plan of a
+# new unit needs none.
+others() {
+	[ -s "$tmp/files" ] || return 0
+	while IFS= read -r f; do
+		(cd "${f%/*}" && printf '%s/%s\n' "$PWD" "${f##*/}")
+	done <"$tmp/files" | paste -s -d , - >"$tmp/config-files"
+	config_files=$(cat "$tmp/config-files")
+	docker ps -a --filter label=com.docker.compose.oneoff=False \
+		--filter "label=com.docker.compose.project.config_files=$config_files" \
+		--format '{{.Label "com.docker.compose.project"}}' >"$tmp/projects" 2>/dev/null || return 0
+	sort -u "$tmp/projects" | grep -vx -e "$p" >"$tmp/others" || true
+	[ -s "$tmp/others" ] || return 0
+	names=$(paste -s -d , "$tmp/others" | sed 's/,/, /g')
+	first=$(head -n 1 "$tmp/others")
+	echo "the Compose files of the unit already run as project $names, which up leaves running beside a project of its own; give the unit project: $first to take it over" >&2
 }
 
 # inspect compares the services of the Compose files with the containers
@@ -92,6 +118,7 @@ inspect() {
 cmd_plan() {
 	setup
 	inspect
+	[ -s "$tmp/have" ] || others
 	jq --arg digest "$digest" '{
 		changes,
 		outputs: (if any(.changes[]; .action == "create" or .action == "delete") then ["services"] else [] end),
@@ -159,8 +186,8 @@ cmd_config() {
 
 # exec runs the program of opstruss exec with Compose set to the files,
 # profiles, env files, and project of the unit, as docker compose ps. A unit
-# without a record has no project yet, so Compose names it after the
-# directory.
+# without a record or the input project has no project yet, so Compose
+# names it after the directory.
 cmd_exec() {
 	setup
 	project

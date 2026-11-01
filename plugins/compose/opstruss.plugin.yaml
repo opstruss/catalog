@@ -18,6 +18,10 @@ inputs:
     items: {type: string}
     description: Files of the variables that Compose puts into the Compose files, relative to the file of the unit
     default: []
+  project:
+    type: string
+    pattern: '^[a-z0-9][a-z0-9_-]*$'
+    description: The name of the Compose project, as docker compose -p; without it, the state key of the unit
   args:
     type: object
     description: Arguments that docker compose gets after those of the plugin, by command

@@ -1,0 +1,92 @@
+# A Compose project that runs already, started without OpsTruss. A unit
+# without the input project plans a project of its own, and the plan warns
+# that the same Compose files run as another project. A unit with project
+# takes that one over: exec names it before the unit has a record, the plan
+# creates nothing, up keeps the containers, and from then on the unit owns
+# the project, so destroy takes it down. A name that Compose does not take
+# is refused.
+#
+# The project has a fixed name, so a run that failed leaves it for the next
+# one to take down first.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+exec docker compose -p catalog-test-adopt down --remove-orphans
+exec docker compose -p catalog-test-adopt up -d --wait
+exec docker ps -q --filter label=com.docker.compose.project=catalog-test-adopt
+cp stdout before
+
+# Without project: a project of its own, and a warning.
+exec opstruss plan fresh
+stdout '^default/fresh: will run: new; plan: create app$'
+stdout 'already run as project catalog-test-adopt, which up leaves running beside a project of its own; give the unit project: catalog-test-adopt to take it over'
+
+# With project: the plan creates nothing, and up keeps the containers.
+exec opstruss exec web -- sh -c 'echo "$COMPOSE_PROJECT_NAME"'
+stdout '^catalog-test-adopt$'
+! stderr 'no record yet'
+exec opstruss plan web
+stdout '^default/web: will run: new$'
+! stdout 'create'
+! stdout 'already run'
+exec opstruss up --yes web
+stdout '^default/web: up: done'
+exec docker ps -q --filter label=com.docker.compose.project=catalog-test-adopt
+cmp stdout before
+exec opstruss status web
+stdout 'catalog-test-adopt-app-1'
+exec opstruss logs web
+stdout 'hello$'
+
+# The unit owns the project: removed, destroy takes it down.
+cp gone.yaml opstruss.yaml
+exec opstruss up --yes
+stdout '^default/web: destroy: done$'
+exec docker ps -aq --filter label=com.docker.compose.project=catalog-test-adopt
+! stdout .
+
+# A name that Compose does not take.
+cp upper.yaml opstruss.yaml
+! exec opstruss validate
+stderr 'units.web.with.project: "Web" does not match'
+
+-- opstruss.yaml --
+name: app
+uses:
+  compose:
+    source: ./catalog/plugins/compose
+    pass: [DOCKER_CONFIG]
+units:
+  fresh:
+    uses: compose
+  web:
+    uses: compose
+    with:
+      project: catalog-test-adopt
+-- gone.yaml --
+name: app
+uses:
+  compose:
+    source: ./catalog/plugins/compose
+    pass: [DOCKER_CONFIG]
+units: {}
+removed:
+  - {from: web, destroy: true}
+-- upper.yaml --
+name: app
+uses:
+  compose:
+    source: ./catalog/plugins/compose
+    pass: [DOCKER_CONFIG]
+units:
+  web:
+    uses: compose
+    with:
+      project: Web
+-- compose.yaml --
+services:
+  app:
+    image: busybox:1.37
+    init: true
+    command: [sh, -c, 'echo hello; exec sleep 3600']

@@ -35,6 +35,7 @@ use it as `compose`.
 | `files` | list of strings | `[compose.yaml]` | The Compose files, relative to the file of the unit; a later file overrides an earlier one |
 | `profiles` | list of strings | `[]` | The profiles whose services the project starts too |
 | `env_files` | list of strings | `[]` | Files of the variables that Compose puts into the Compose files, relative to the file of the unit |
+| `project` | string | the state key of the unit | The name of the Compose project, as `docker compose -p`: lowercase letters, digits, `-`, and `_`, starting with a letter or a digit ([Project](#project)) |
 | `args` | object | `{}` | Arguments that `docker compose` gets after those of the plugin, by command: `up` and `down`, each a list of strings |
 
 ## Arguments
@@ -154,9 +155,41 @@ it is not `~/.docker`.
 
 ## Project
 
-The Compose project of a unit is named after its state key, such as
-`default-web-7f3a9c1e`, so it stays when the unit moves, and `destroy` needs
-only that name, not the Compose files.
+Without `project`, the Compose project of a unit is named after its state
+key, such as `default-web-7f3a9c1e`. The name stays when the unit moves,
+two stacks or two projects with the same Compose files never share one,
+and `destroy` needs only that name, not the Compose files.
+
+`project` names it instead, as for a project that runs already, started
+with `docker compose up -d`. The unit takes that project over:
+
+```yaml
+units:
+  web:
+    uses: cat.compose
+    with:
+      files: [./compose.yaml]
+      project: web
+```
+
+The first plan lists no service to create, and `up` keeps the containers
+and writes the record. From then on the unit owns the project: `up` and
+`destroy` work on it, and so do `status`, `logs`, and `opstruss exec`.
+Volumes and networks belong to the project by its name, so the data in
+them stays. For one project per stack, write `project: web-${{ stack }}`.
+
+Another `project` starts another project: the old one keeps running until
+`docker compose -p <old> down` takes it down.
+
+When the project of a unit has no container, and the same Compose files
+run as another project, the plan warns and names it:
+
+```text
+the Compose files of the unit already run as project web, which up leaves running beside a project of its own; give the unit project: web to take it over
+```
+
+It is a warning, since another stack with the same files runs as a project
+of its own too.
 
 ## exec
 
@@ -166,5 +199,6 @@ opstruss exec web -- docker compose logs -f
 ```
 
 The program gets `COMPOSE_FILE`, `COMPOSE_PROFILES`, `COMPOSE_ENV_FILES`,
-and `COMPOSE_PROJECT_NAME` of the unit, with absolute paths. A unit without
-a record has no project yet, and Compose names one after the directory.
+and `COMPOSE_PROJECT_NAME` of the unit, with absolute paths. A unit with
+`project` has that name also before it has a record; a unit without
+either has no project yet, and Compose names one after the directory.
