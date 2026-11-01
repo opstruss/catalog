@@ -12,14 +12,14 @@ Needs `tofu` and `jq` in `PATH`.
 
 ```yaml
 uses:
-  cat: github.com/opstruss/catalog@v1
+  ops: github.com/opstruss/catalog@v1
 
 secrets:
   cloudflare: {env: CLOUDFLARE_API_TOKEN}
 
 units:
   dns:
-    uses: cat.tofu
+    uses: ops.tofu
     with:
       dir: ./dns
       vars:
@@ -51,7 +51,7 @@ else goes through `args`, after the arguments of the plugin:
 ```yaml
 units:
   dns:
-    uses: cat.tofu
+    uses: ops.tofu
     with:
       dir: ./dns
       var_files: [./prod.tfvars]
@@ -107,9 +107,9 @@ shell, with `set -a; . ./.env; set +a`:
 
 ```yaml
 uses:
-  cat: github.com/opstruss/catalog@v1
+  ops: github.com/opstruss/catalog@v1
   tofu:
-    source: cat.tofu
+    source: ops.tofu
     pass: [AWS_PROFILE, AWS_REGION, CLOUDFLARE_*, TF_VAR_*]
 ```
 
@@ -143,9 +143,9 @@ secrets:
   aws_secret: {env: AWS_SECRET_ACCESS_KEY}
   aws_session: {env: AWS_SESSION_TOKEN}
 uses:
-  cat: github.com/opstruss/catalog@v1
+  ops: github.com/opstruss/catalog@v1
   tofu:
-    source: cat.tofu
+    source: ops.tofu
     pass: [AWS_REGION]
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.aws_key }}

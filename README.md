@@ -18,11 +18,11 @@ its packages through that declaration:
 
 ```yaml
 uses:
-  cat: github.com/opstruss/catalog@v1
-  tofu: cat.tofu          # an alias, which follows the pin of cat
+  ops: github.com/opstruss/catalog@v1
+  tofu: ops.tofu          # an alias, which follows the pin of ops
 units:
   web:
-    uses: cat.compose
+    uses: ops.compose
   network:
     uses: tofu
 ```

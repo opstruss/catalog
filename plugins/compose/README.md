@@ -11,11 +11,11 @@ Needs `docker` with Compose v2 and `jq` in `PATH`.
 
 ```yaml
 uses:
-  cat: github.com/opstruss/catalog@v1
+  ops: github.com/opstruss/catalog@v1
 
 units:
   web:
-    uses: cat.compose
+    uses: ops.compose
     with:
       files: [./compose.yaml]
     env:
@@ -48,7 +48,7 @@ goes through `args`, after the arguments of the plugin:
 ```yaml
 units:
   web:
-    uses: cat.compose
+    uses: ops.compose
     with:
       files: [./compose.yaml, ./compose.prod.yaml]
       profiles: [monitoring]
@@ -98,8 +98,8 @@ files as a unit gives them:
 
 ```yaml
 uses:
-  cat: github.com/opstruss/catalog@v1
-  compose: cat.compose
+  ops: github.com/opstruss/catalog@v1
+  compose: ops.compose
 tasks:
   check:
     steps:
@@ -140,9 +140,9 @@ does:
 
 ```yaml
 uses:
-  cat: github.com/opstruss/catalog@v1
+  ops: github.com/opstruss/catalog@v1
   compose:
-    source: cat.compose
+    source: ops.compose
     pass: [DOCKER_CONTEXT, TAG]
 ```
 
@@ -166,7 +166,7 @@ with `docker compose up -d`. The unit takes that project over:
 ```yaml
 units:
   web:
-    uses: cat.compose
+    uses: ops.compose
     with:
       files: [./compose.yaml]
       project: web

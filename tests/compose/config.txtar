@@ -14,9 +14,9 @@ stdout 'image: busybox:1.37$'
 -- opstruss.yaml --
 name: app
 uses:
-  cat: ./catalog
+  ops: ./catalog
   compose:
-    source: cat.compose
+    source: ops.compose
     pass: [DOCKER_CONFIG]
 tasks:
   check:
