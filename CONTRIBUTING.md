@@ -221,8 +221,11 @@ Before a pull request, the tests show that:
 A change that a project using the plugin can notice goes in
 [`CHANGELOG.md`](CHANGELOG.md), under `[Unreleased]`, in the same commit.
 
-Every package on `v1` keeps working with OpsTruss 1.0, since `v1` moves
-and `opstruss plugins update` on an older OpsTruss cannot pick another
-release: a package does not raise its `opstruss:` above `"1.0"`, and
-neither does `opstruss.catalog.yaml`. A package that needs a later
-version waits for `v2`, or comes as a package of a new name.
+A package on `v1` keeps working with every OpsTruss that it worked with,
+since `v1` moves and `opstruss plugins update` on an older OpsTruss cannot
+pick another release: a package never raises its `opstruss:` on `v1`, and
+`opstruss.catalog.yaml` stays at `"1.0"`. A new package may start at the
+level it needs, since no project used it with an older OpsTruss, which
+refuses it and names the version it needs. A package that needs a later
+level comes as a package of a new name, or waits for `v2` of this
+catalog, which does not wait for OpsTruss 2.

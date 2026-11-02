@@ -1,8 +1,8 @@
 # OpsTruss catalog
 
 Official plugins and components for
-[OpsTruss](https://github.com/opstruss/opstruss). Every package on `v1`
-works with OpsTruss 1.0 and later.
+[OpsTruss](https://github.com/opstruss/opstruss). The packages here work
+with OpsTruss 1.0 and later, and keep working with it on `v1`.
 
 ## Plugins
 
