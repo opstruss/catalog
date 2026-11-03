@@ -133,9 +133,11 @@ cmd_plan() {
 	}' "$tmp/plan.json" >"$OPSTRUSS_PLAN"
 }
 
-# Without a TTY Compose prints the lines of the network twice, also with
-# --progress plain; the plugin leaves the output of Compose as it is, and
-# --ansi always keeps that output in lines.
+# up and destroy have tty: true, so at a terminal Compose draws its
+# progress there as it does without OpsTruss. Without one it prints a line
+# per change, the lines of the network twice, also with --progress plain,
+# which the plugin leaves as they are. With a terminal Compose does not
+# stop on SIGINT, so the manifest gives it a short stop.grace.
 cmd_up() {
 	setup
 	inspect

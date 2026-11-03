@@ -41,8 +41,12 @@ tasks:
     run: [./compose.sh, plan]
   up:
     run: [./compose.sh, up]
+    tty: true
+    stop: {grace: 10s}
   destroy:
     run: [./compose.sh, destroy]
+    tty: true
+    stop: {grace: 10s}
   status:
     run: [./compose.sh, status]
   logs:

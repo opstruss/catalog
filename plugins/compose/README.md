@@ -5,6 +5,12 @@
 project become the output of the unit. Compose prints in color where
 OpsTruss shows color, and without it when OpsTruss sets `NO_COLOR`.
 
+At a terminal, `up` and `destroy` show the progress of Compose as it
+draws it there; in CI, with `--json`, and in the daemon they print a line
+per change. `tty: false` on the unit keeps those lines at a terminal too.
+With a terminal, Compose does not stop on Ctrl-C, so OpsTruss stops it 10
+seconds after the first Ctrl-C, or at once at the second.
+
 Needs `docker` with Compose v2 and `jq` in `PATH`.
 
 ## Use

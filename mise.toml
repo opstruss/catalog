@@ -7,4 +7,4 @@ shellcheck = "0.11.0"
 "go:github.com/rogpeppe/go-internal/cmd/testscript" = "1.16.0"
 # The tests run opstruss at a commit of its main branch until its first
 # release.
-"go:github.com/opstruss/opstruss" = "22440a159156b05dcd8173afaa32a8eb78201c5b"
+"go:github.com/opstruss/opstruss" = "fa78d98d7b626df70c68760eb0cef8bd7fe0e5e9"

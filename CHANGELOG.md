@@ -33,6 +33,8 @@ release assets of a compiled plugin.
   what is missing when `docker` has no Compose v2.
 - `tofu` and `compose` print in color unless OpsTruss sets `NO_COLOR`,
   which it does when it shows the output of a run without color.
+- `compose` shows the progress of Compose at a terminal, as `docker
+  compose` draws it, and a line per change in CI.
 - Every package works with OpsTruss 1.0 and later, and keeps working
   with it on `v1`; `opstruss.catalog.yaml` names its level,
   `opstruss: "1.0"`.
