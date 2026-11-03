@@ -110,15 +110,16 @@ Compose then names the project after the directory. For the files and the
 project of a unit, `opstruss exec web -- docker compose config` runs
 Compose as the unit does ([exec](#exec)).
 
-A service whose container is `created`, `dead`, or exited with a code
-other than 0, as after a crash, `docker stop`, or a reboot without a
-restart policy, is an update, which `up` starts again. One that exited
-with 0 ran as it should, as a migration does, and stays unchanged, and so
-does one that is `paused` or `restarting`, which `up -d` leaves as it is.
+A service whose container is `created`, `dead`, or `exited`, as after a
+crash, `docker stop`, or a reboot without a restart policy, is an update,
+which `up` starts again; a server that stops cleanly exits with 0 too.
+One that is `paused` or `restarting` stays unchanged, as `up -d` leaves
+it.
 
-`--wait` takes a service that exits with 0 only when another service
+A service that exits with 0 ran as it should only when another service
 depends on it with `condition: service_completed_successfully`, as an app
-on its migration; on its own, `up` fails with `exited (0)`:
+on its migration: it stays unchanged, and `--wait` takes it. On its own,
+it is an update in each plan, and `up` fails with `exited (0)`:
 
 ```yaml
 services:

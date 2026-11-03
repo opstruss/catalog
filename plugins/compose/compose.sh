@@ -84,12 +84,15 @@ others() {
 # inspect compares the services of the Compose files with the containers
 # of the project, by the config hash that Compose labels each with, into
 # $tmp/plan.json, and sets its digest. A service whose container is
-# created, dead, or exited with a code other than 0 is an update, which up
-# -d starts again; one that exited with 0 ran as it should, as a migration
-# does, and paused or restarting is what up -d leaves as it is. Containers
-# of docker compose run are not the services.
+# created, dead, or exited is an update, which up -d starts again, also
+# when it exited with 0, as a server does on docker stop. Only a service
+# that another one depends on with condition service_completed_successfully,
+# as a migration, ran as it should when it exited with 0, which is also
+# what up --wait takes. Paused or restarting is what up -d leaves as it is.
+# Containers of docker compose run are not the services.
 inspect() {
 	docker compose config --hash '*' >"$tmp/want"
+	docker compose config --format json >"$tmp/config.json"
 	: >"$tmp/have"
 	project
 	if [ -n "$p" ]; then
@@ -100,11 +103,14 @@ inspect() {
 				<"$tmp/ids" >"$tmp/have"
 		fi
 	fi
-	jq -nS --rawfile want "$tmp/want" --rawfile have "$tmp/have" '
+	jq -nS --rawfile want "$tmp/want" --rawfile have "$tmp/have" --slurpfile config "$tmp/config.json" '
 		def rows: split("\n") | map(select(. != "") | split(" "));
 		def table: map({key: .[0], value: .[1]}) | from_entries;
 		($want | rows | table) as $w | ($have | rows) as $rows | ($rows | table) as $h
-		| ($rows | map(select(.[2] == "created" or .[2] == "dead" or (.[2] == "exited" and .[3] != "0")) | .[0])) as $stopped
+		| [$config[0].services[] | .depends_on // {} | to_entries[]
+			| select(.value.condition == "service_completed_successfully") | .key] as $once
+		| ($rows | map(select(.[2] == "created" or .[2] == "dead"
+			or (.[2] == "exited" and (.[3] != "0" or (.[0] as $s | $once | index($s) | not)))) | .[0])) as $stopped
 		| {
 			want: $w,
 			changes: ([$w | keys[] | select($h[.] == null) | {action: "create", resource: .}]

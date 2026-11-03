@@ -26,8 +26,9 @@ release assets of a compiled plugin.
   the files, profiles, env files, and project of the unit for
   `docker compose`. The inputs `files`, `profiles`, and `env_files` reach
   every `docker compose` of the unit, and `args` adds arguments to `up`
-  and `down`. A service whose container stopped with an error, or never
-  started, is an update that `up` starts again. It asks for every
+  and `down`. A service whose container stopped or never started is an
+  update that `up` starts again, unless it exited with 0 and another
+  service waits for it to complete, as for a migration. It asks for every
   variable, so `pass:` alone says which reach Compose, and stops with
   what is missing when `docker` has no Compose v2.
 - `tofu` and `compose` print in color unless OpsTruss sets `NO_COLOR`,
