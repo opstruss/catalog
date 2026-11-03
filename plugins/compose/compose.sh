@@ -13,9 +13,12 @@
 . "$OPSTRUSS_PLUGIN_DIR/../../lib/opstruss.sh"
 
 # docker without its Compose plugin reads the flags of compose as its own,
-# such as --hash, so say what is missing before any command.
-docker compose version >/dev/null 2>&1 ||
-	fail "compose needs Docker Compose v2, the command docker compose; install the Compose plugin of Docker, such as the package docker-compose-plugin"
+# such as --hash, so say what is missing before any command. Compose 2.23
+# is the first that reads COMPOSE_ENV_FILES.
+compose_version=$(docker compose version --short 2>/dev/null) ||
+	fail "compose needs Docker Compose 2.23 or later, the command docker compose; install the Compose plugin of Docker, such as the package docker-compose-plugin"
+at_least "$compose_version" 2.23 ||
+	fail "compose needs Docker Compose 2.23 or later; this is $compose_version"
 
 # Compose prints color unless OpsTruss shows the output of the run without.
 ansi=never
@@ -37,6 +40,9 @@ setup() {
 	export COMPOSE_FILE COMPOSE_ENV_FILES COMPOSE_PROFILES
 	# Without files, Compose looks for its default file, as without -f.
 	[ -n "$COMPOSE_FILE" ] || unset COMPOSE_FILE
+	# Without env files, Compose would read .env of the working directory,
+	# which pass: does not cover, so it gets an empty one.
+	[ -n "$COMPOSE_ENV_FILES" ] || COMPOSE_ENV_FILES=/dev/null
 }
 
 # joined prints the lines of the file $1 joined by $2, on which Compose

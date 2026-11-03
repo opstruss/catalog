@@ -1,5 +1,7 @@
 # A docker without its Compose plugin stops each program of the plugin
-# with what is missing, rather than with the usage of docker.
+# with what is missing, rather than with the usage of docker, and a
+# Compose older than the plugin takes stops them with the version that it
+# needs.
 
 env HOME=$WORK/home
 env PATH=$WORK/bin:$PATH
@@ -7,12 +9,25 @@ chmod 755 bin/docker
 symlink catalog -> $CATALOG
 
 ! exec opstruss plan
-stdout '^default/web \| compose needs Docker Compose v2, the command docker compose; install the Compose plugin of Docker'
+stdout '^default/web \| compose needs Docker Compose 2.23 or later, the command docker compose; install the Compose plugin of Docker'
 ! stdout 'unknown flag'
+
+cp old-docker bin/docker
+chmod 755 bin/docker
+! exec opstruss plan
+stdout '^default/web \| compose needs Docker Compose 2.23 or later; this is 2.22.0$'
 
 -- bin/docker --
 #!/bin/sh
 echo "docker: unknown command: docker $1" >&2
+exit 1
+-- old-docker --
+#!/bin/sh
+if [ "$*" = "compose version --short" ]; then
+	echo 2.22.0
+	exit 0
+fi
+echo "unexpected: docker $*" >&2
 exit 1
 -- opstruss.yaml --
 name: app

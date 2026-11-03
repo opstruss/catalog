@@ -11,7 +11,8 @@ per change. `tty: false` on the unit keeps those lines at a terminal too.
 With a terminal, Compose does not stop on Ctrl-C, so OpsTruss stops it 10
 seconds after the first Ctrl-C, or at once at the second.
 
-Needs `docker` with Compose v2 and `jq` in `PATH`.
+Needs `docker` with Docker Compose 2.23 or later, the command
+`docker compose`, and `jq` 1.6 or later in `PATH`.
 
 ## Use
 
@@ -38,9 +39,9 @@ use it as `compose`.
 
 | Name | Type | Default | Description |
 |---|---|---|---|
-| `files` | list of strings | `[compose.yaml]` | The Compose files, relative to the file of the unit; a later file overrides an earlier one |
+| `files` | list of strings | `[compose.yaml]` | The Compose files, relative to the file of the unit; a later file overrides an earlier one, and `compose.override.yaml` counts only when it is listed |
 | `profiles` | list of strings | `[]` | The profiles whose services the project starts too |
-| `env_files` | list of strings | `[]` | Files of the variables that Compose puts into the Compose files, relative to the file of the unit |
+| `env_files` | list of strings | `[]` | Files of the variables that Compose puts into the Compose files, relative to the file of the unit; without them, Compose reads no `.env` |
 | `project` | string | the state key of the unit | The name of the Compose project, as `docker compose -p`: lowercase letters, digits, `-`, and `_`, starting with a letter or a digit ([Project](#project)) |
 | `args` | object | `{}` | Arguments that `docker compose` gets after those of the plugin, by command: `up` and `down`, each a list of strings |
 
@@ -153,7 +154,8 @@ uses:
     pass: [DOCKER_CONTEXT, TAG]
 ```
 
-Compose reads a `.env` file of its own through `env_files: [.env]`.
+A `.env` file reaches Compose only through `env_files`, as
+`env_files: [.env]`, also one next to the file of the unit.
 
 The record keeps a fingerprint of what a unit passes, so `destroy` from
 another Docker host stops. `DOCKER_CONFIG` names the directory of the

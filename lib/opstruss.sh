@@ -16,8 +16,9 @@
 # Without the trap, a shell that is bash would go on to its next line.
 #
 # The helpers need jq 1.6 or later. A plugin does not define their names
-# again: approved, color, fail, input, input_file, known_keys, main, output,
-# paths, run_with, scratch, sha256, unchanged, and words; scratch sets tmp.
+# again: approved, at_least, color, fail, input, input_file, known_keys,
+# main, output, paths, run_with, scratch, sha256, unchanged, and words;
+# scratch sets tmp.
 #
 # This file is not a public API; it changes with the plugins of the catalog.
 
@@ -189,4 +190,20 @@ sha256() {
 		opstruss_sum=$(shasum -a 256 "$@")
 	fi
 	printf '%s\n' "${opstruss_sum%% *}"
+}
+
+# at_least reports whether the version $1 of a tool, as 2.23.0 or v1.6.2,
+# is $2 or later, number by number, for a plugin that checks the oldest
+# version of its tool that it takes:
+#
+#   at_least "$version" 1.6 || fail "tofu needs OpenTofu 1.6 or later; this is $version"
+at_least() {
+	awk -v have="$1" -v want="$2" 'BEGIN {
+		sub(/^v/, "", have)
+		split(have, h, "[^0-9]+")
+		n = split(want, w, ".")
+		for (i = 1; i <= n; i++)
+			if (h[i] + 0 != w[i] + 0)
+				exit (h[i] + 0 < w[i] + 0)
+	}'
 }
