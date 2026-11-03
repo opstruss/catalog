@@ -6,7 +6,8 @@ can notice is written down here, newest first.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 A release tag `vX.Y.Z` covers the whole catalog and `vX` moves to the
 latest release of each major version; a tag `<name>-vX.Y.Z` only names the
-release assets of a compiled plugin.
+release assets of a compiled plugin. A release that needs a later OpsTruss
+or a later version of a tool says so first, under Upgrade notes.
 
 ## [Unreleased]
 
@@ -29,12 +30,13 @@ release assets of a compiled plugin.
   and `down`. A service whose container stopped or never started is an
   update that `up` starts again, unless it exited with 0 and another
   service waits for it to complete, as for a migration. It asks for every
-  variable, so `pass:` alone says which reach Compose, and stops with
-  what is missing when `docker` has no Compose v2.
+  variable, so `pass:` alone says which reach Compose, and a `.env` file
+  reaches it only through `env_files`.
 - `tofu` and `compose` print in color unless OpsTruss sets `NO_COLOR`,
   which it does when it shows the output of a run without color.
 - `compose` shows the progress of Compose at a terminal, as `docker
   compose` draws it, and a line per change in CI.
-- Every package works with OpsTruss 1.0 and later, and keeps working
-  with it on `v1`; `opstruss.catalog.yaml` names its level,
-  `opstruss: "1.0"`.
+- Each package names the oldest OpsTruss that it takes in its manifest,
+  `opstruss: "1.0"`, and each plugin the oldest version of its tool:
+  OpenTofu 1.6, Docker Compose 2.23, and jq 1.6. An older one stops the
+  plugin with the version that it needs.

@@ -1,5 +1,6 @@
 name: tofu
 description: OpenTofu modules
+opstruss: "1.0"
 requires: [tofu, jq]
 env: ['*']
 state: tool

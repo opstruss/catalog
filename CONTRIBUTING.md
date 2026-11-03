@@ -81,7 +81,8 @@ unit. Every script of the catalog has the same parts, in this order:
 
 1. A comment that says what a unit of the plugin is.
 2. `. "$OPSTRUSS_PLUGIN_DIR/../../lib/opstruss.sh"`, with its `shellcheck`
-   line.
+   line, then, for a plugin of a tool, the check of the oldest version of
+   the tool that it takes, with `at_least`.
 3. The functions of the tool, each with a comment, such as `setup`, which
    reads the inputs and works out what `up` would do.
 4. One `cmd_<task>` for each task of the manifest, in the same order.
@@ -122,6 +123,7 @@ tool to stop as the tool does, then ends with 130 or 143.
 | `approved DIGEST` | whether `up` is about to apply the plan that was approved |
 | `fail MESSAGE…` | one line to stderr, then exit 1 |
 | `sha256 [FILE]` | the SHA-256 of a file, or of stdin |
+| `at_least VERSION OLDEST` | whether a version of the tool is the oldest that the plugin takes, or later |
 | `main "$@"` | run `cmd_<task>` |
 
 A helper joins `lib/` when it is one part of the contract, or one thing
@@ -214,18 +216,53 @@ Before a pull request, the tests show that:
 - `destroy` succeeds when the target is gone already;
 - the output is plain with `NO_COLOR`;
 - a secret input stays out of the log and the records;
-- every program that the plugin runs is in `requires:`.
+- every program that the plugin runs is in `requires:`;
+- a tool older than the README names stops the plugin with the version
+  that it needs.
 
 ## Changes
 
-A change that a project using the plugin can notice goes in
+A change that a project using a package can notice goes in
 [`CHANGELOG.md`](CHANGELOG.md), under `[Unreleased]`, in the same commit.
 
-A package on `v1` keeps working with every OpsTruss that it worked with,
-since `v1` moves and `opstruss plugins update` on an older OpsTruss cannot
-pick another release: a package never raises its `opstruss:` on `v1`, and
-`opstruss.catalog.yaml` stays at `"1.0"`. A new package may start at the
-level it needs, since no project used it with an older OpsTruss, which
-refuses it and names the version it needs. A package that needs a later
-level comes as a package of a new name, or waits for `v2` of this
-catalog, which does not wait for OpsTruss 2.
+A release of `v1` may need more than the one before it, since what it
+needs stops a project with what to upgrade before anything runs:
+
+- a later OpsTruss, for a key or a behavior that it brings: the package
+  raises `opstruss:` in its manifest. An older OpsTruss refuses the
+  package, and `opstruss plugins update` there stops with the version and
+  keeps the pins. `opstruss.catalog.yaml` raises its level only for a key
+  of its own, since every project that declares the catalog reads it;
+- a later version of a tool: the README of the plugin names it, and its
+  script checks it with `at_least`;
+- another program, in `requires:`.
+
+Each one goes under `### Upgrade notes`, first in its release.
+
+What a unit does stays on `v1`. A change after which an update would run
+something else, without failing first, waits for `v2`:
+
+- removing or renaming a package, a task, an input, or an output;
+- another type or default of an input, a value that it no longer takes,
+  or another meaning;
+- another shape of an output;
+- another name or place for what a unit makes, as the project of a Compose
+  unit or the state of a tofu unit, which would start a second one beside
+  it, or plan to make it again.
+
+What `v2` replaces keeps working on `v1`: the README says what replaces
+it, and the plan of a unit that uses it warns on stderr.
+
+No package or component takes the name of a standard task or hook:
+`plan`, `up`, `destroy`, `status`, `logs`, `watch`, `exec`, or `migrate`.
+OpsTruss refuses the whole catalog with one, in every project that
+declares it.
+
+## Releases
+
+A release is an annotated tag `vX.Y.Z` on a commit whose `CHANGELOG.md`
+has the section `## [X.Y.Z] - YYYY-MM-DD`, which was `[Unreleased]`. The
+`release` workflow publishes it with that section as its notes, and moves
+`vX` to it unless a later `vX` release exists. A tag `<name>-vX.Y.Z` only
+names the release assets of a compiled plugin. A branch never takes the
+name of a tag: one that keeps `v1` after `v2` is `release/v1`.

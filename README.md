@@ -1,15 +1,14 @@
 # OpsTruss catalog
 
 Official plugins and components for
-[OpsTruss](https://github.com/opstruss/opstruss). The packages here work
-with OpsTruss 1.0 and later, and keep working with it on `v1`.
+[OpsTruss](https://github.com/opstruss/opstruss).
 
 ## Plugins
 
-| Plugin | Units of | Needs in `PATH` |
+| Plugin | Units of | Needs in `PATH`, at least |
 |---|---|---|
-| [tofu](plugins/tofu) | OpenTofu root modules | `tofu`, `jq` |
-| [compose](plugins/compose) | Docker Compose projects | `docker` with Compose v2, `jq` |
+| [tofu](plugins/tofu) | OpenTofu root modules | `tofu` 1.6, `jq` 1.6 |
+| [compose](plugins/compose) | Docker Compose projects | `docker` with Compose 2.23, `jq` 1.6 |
 
 ## Use
 
@@ -42,6 +41,28 @@ checkout of this repository by path instead:
 uses:
   <name>: ../catalog/plugins/<name>
 ```
+
+## Versions
+
+`v1` is the major version of this catalog, not of OpsTruss. Each release
+has a tag `v1.Y.Z`, which never moves, and `v1` moves to the latest of
+them. `opstruss.lock` keeps the commit that a project got until
+`opstruss plugins update` moves it; a ref such as `@v1.2.0` names one
+release, which an update does not move.
+
+A release of `v1` adds packages, tasks, inputs, and outputs, and fixes
+them. It may need a later OpsTruss, which `opstruss:` in the manifest of a
+package names, or a later version of a tool, which the README of the
+plugin names; its notes say so first, under Upgrade notes. On an older
+OpsTruss, `opstruss plugins update` stops with the version that it needs
+and keeps the pins, and with an older tool the plugin stops with the
+version that it needs.
+
+What a unit does stays on `v1`: no release of it removes or renames a
+package, a task, an input, or an output, changes the type, the default,
+or the meaning of an input, or changes what a unit makes, as the name of
+its Compose project or the place of its tofu state. Those come with `v2`,
+and what they replace keeps working until then.
 
 ## Layout
 

@@ -1,5 +1,6 @@
 name: file
 description: A text file, as the example of a plugin
+opstruss: "1.0"
 requires: [jq]
 inputs:
   path:
