@@ -25,7 +25,7 @@ stdout '^default/infra: destroy: done$'
 
 cp init.yaml opstruss.yaml
 ! exec opstruss plan
-stdout 'flag provided but not defined: -bogus'
+stdout 'flag provided but not defined: -bogus|Usage: tofu \[global options\] init'
 
 cp typo.yaml opstruss.yaml
 ! exec opstruss plan

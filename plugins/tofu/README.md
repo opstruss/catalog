@@ -6,7 +6,7 @@ the outputs of the module become the outputs of the unit. Plan, apply,
 and destroy print in color where OpsTruss shows color, and without it
 when OpsTruss sets `NO_COLOR`.
 
-Needs `tofu` and `jq` in `PATH`.
+Needs `tofu`, OpenTofu 1.6 or later, and `jq` 1.6 or later in `PATH`.
 
 ## Use
 

@@ -22,6 +22,13 @@
 # shellcheck source-path=SCRIPTDIR source=../../lib/opstruss.sh
 . "$OPSTRUSS_PLUGIN_DIR/../../lib/opstruss.sh"
 
+# OpenTofu 1.6, its first release, has every command and flag that the
+# plugin gives.
+tofu_version=$(tofu version -json)
+tofu_version=$(printf '%s' "$tofu_version" | jq -r '.terraform_version // ""')
+at_least "$tofu_version" 1.6 ||
+	fail "tofu needs OpenTofu 1.6 or later; this is ${tofu_version:-unknown}"
+
 # setup reads the inputs and runs tofu init with its data in the work
 # directory of the unit, so the module stays as it is. It sets dir, the
 # module; state, the state file in the tool directory; owner and

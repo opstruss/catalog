@@ -1,0 +1,26 @@
+# An OpenTofu older than the plugin takes stops each program of the plugin
+# with the version that it needs, before tofu runs anything.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 755 bin/tofu
+symlink catalog -> $CATALOG
+
+! exec opstruss plan
+stdout '^default/net \| tofu needs OpenTofu 1.6 or later; this is 1.5.7$'
+
+-- bin/tofu --
+#!/bin/sh
+if [ "$*" = "version -json" ]; then
+	echo '{"terraform_version": "1.5.7", "platform": "linux_amd64"}'
+	exit 0
+fi
+echo "unexpected: tofu $*" >&2
+exit 1
+-- opstruss.yaml --
+name: app
+uses:
+  tofu: ./catalog/plugins/tofu
+units:
+  net:
+    uses: tofu
