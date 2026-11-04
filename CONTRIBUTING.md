@@ -3,7 +3,9 @@
 How a plugin of this catalog is made, checked, and tested. The plugin in
 [`examples/file`](examples/file) shows each part: to start, copy it to
 `plugins/<name>/`, and its test to `tests/<name>/`, with the path of the
-plugin in the test changed.
+plugin in the test changed. A component goes in `components/<name>/`, and
+the first one adds `components/*` to `packages` in
+`opstruss.catalog.yaml`.
 
 ## Kinds of plugins
 
@@ -230,7 +232,7 @@ needs stops a project with what to upgrade before anything runs:
 
 - a later OpsTruss, for a key or a behavior that it brings: the package
   raises `opstruss:` in its manifest. An older OpsTruss refuses the
-  package, and `opstruss plugins update` there stops with the version and
+  package, and `opstruss uses update` there stops with the version and
   keeps the pins. `opstruss.catalog.yaml` raises its level only for a key
   of its own, since every project that declares the catalog reads it;
 - a later version of a tool: the README of the plugin names it, and its
@@ -253,10 +255,14 @@ something else, without failing first, waits for `v2`:
 What `v2` replaces keeps working on `v1`: the README says what replaces
 it, and the plan of a unit that uses it warns on stderr.
 
-No package or component takes the name of a standard task or hook:
-`plan`, `up`, `destroy`, `status`, `logs`, `watch`, `exec`, or `migrate`.
-OpsTruss refuses the whole catalog with one, in every project that
-declares it.
+A package that moves to another directory keeps its name, which is its
+address, so the move may come in a minor release; the units of the
+package run once again, since its hash covers its path.
+
+No package takes the name of a standard task or hook: `plan`, `up`,
+`destroy`, `status`, `logs`, `watch`, `exec`, or `migrate`, nor the name
+of another package, in `plugins/` or `components/`. OpsTruss refuses the
+whole catalog with one, in every project that declares it.
 
 ## Releases
 

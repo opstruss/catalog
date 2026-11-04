@@ -26,15 +26,15 @@ units:
     uses: tofu
 ```
 
-A package can also be declared alone, by its path in this repository:
+A package can also be declared alone, by its name:
 
 ```yaml
 uses:
-  <name>: github.com/opstruss/catalog/plugins/<name>@v1
+  <name>: github.com/opstruss/catalog/<name>@v1
 ```
 
 OpsTruss pins the ref to a commit and a hash in `opstruss.lock`, and
-`opstruss plugins update` moves the pin. To work on a package, use a local
+`opstruss uses update` moves the pin. To work on a package, use a local
 checkout of this repository by path instead:
 
 ```yaml
@@ -47,14 +47,14 @@ uses:
 `v1` is the major version of this catalog, not of OpsTruss. Each release
 has a tag `v1.Y.Z`, which never moves, and `v1` moves to the latest of
 them. `opstruss.lock` keeps the commit that a project got until
-`opstruss plugins update` moves it; a ref such as `@v1.2.0` names one
+`opstruss uses update` moves it; a ref such as `@v1.2.0` names one
 release, which an update does not move.
 
 A release of `v1` adds packages, tasks, inputs, and outputs, and fixes
 them. It may need a later OpsTruss, which `opstruss:` in the manifest of a
 package names, or a later version of a tool, which the README of the
 plugin names; its notes say so first, under Upgrade notes. On an older
-OpsTruss, `opstruss plugins update` stops with the version that it needs
+OpsTruss, `opstruss uses update` stops with the version that it needs
 and keeps the pins, and with an older tool the plugin stops with the
 version that it needs.
 
@@ -68,16 +68,21 @@ and what they replace keeps working until then.
 
 | Path | Content |
 |---|---|
-| `plugins/<name>/` | a plugin: `opstruss.plugin.yaml` and its scripts, with the components it ships in `components/` |
-| `components/<name>/` | a component that composes several plugins, when the catalog has one |
+| `plugins/<name>/` | a plugin: `opstruss.plugin.yaml` and its scripts |
+| `components/<name>/` | a component, with `opstruss.yaml`, that uses the plugins of the catalog by path, as `../../plugins/tofu`, once the catalog has one |
 | `lib/` | helpers that the scripts of the plugins load |
 | `examples/<name>/` | plugins that show how one is written, for its authors rather than for projects |
-| `opstruss.catalog.yaml` | marks the root of the catalog and shares `lib` |
+| `opstruss.catalog.yaml` | marks the root of the catalog, shares `lib`, and names the packages in `packages` |
 | `tests/<name>/` | the tests of a package |
 
 ## Packages
 
-- A package is the directory of a plugin or a component. A unit's digest
+- A package is the directory of a plugin in `plugins/` or of a component
+  in `components/`, used by its name: `ops.<name>`, or
+  `github.com/opstruss/catalog/<name>@v1`. A name is unique across both
+  and stays for all of `v1`; a directory may move in a minor release,
+  which runs the units of its package once again.
+- A unit's digest
   hashes its package and the shared paths, so a change elsewhere in the
   catalog runs none of its units again, and a change in `lib/` runs all of
   them.
