@@ -1,0 +1,78 @@
+# args reach brew after the arguments of the plugin, before the names; a
+# key of args that the plugin does not take, and a name that brew could
+# read as an option, stop validate.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 755 bin/brew
+symlink catalog -> $CATALOG
+mkdir brew/Cellar brew/opt brew/Caskroom
+
+exec opstruss up --yes
+grep '^install --formula --force hello$' brew/log
+exec opstruss destroy --yes
+grep '^uninstall --formula --ignore-dependencies hello$' brew/log
+
+cp typo.yaml opstruss.yaml
+! exec opstruss validate
+stderr 'units.tools.with.args: unknown key upgrade'
+
+cp option.yaml opstruss.yaml
+! exec opstruss validate
+stderr 'units.tools.with.packages: \[0\]: "--force" does not match'
+
+-- opstruss.yaml --
+name: app
+uses:
+  brew: ./catalog/plugins/brew
+units:
+  tools:
+    uses: brew
+    with:
+      packages: [hello]
+      args:
+        install: [--force]
+        uninstall: [--ignore-dependencies]
+-- typo.yaml --
+name: app
+uses:
+  brew: ./catalog/plugins/brew
+units:
+  tools:
+    uses: brew
+    with:
+      packages: [hello]
+      args: {upgrade: [--force]}
+-- option.yaml --
+name: app
+uses:
+  brew: ./catalog/plugins/brew
+units:
+  tools:
+    uses: brew
+    with:
+      packages: [--force]
+-- bin/brew --
+#!/bin/sh
+# A Homebrew of the test, in brew/ next to bin/: a formula or cask
+# installs as version 1.0, and one named zz-broken fails.
+root=$(cd "$(dirname "$0")/../brew" && pwd)
+case $1 in
+--prefix) echo "$root"; exit 0 ;;
+--cellar) echo "$root/Cellar"; exit 0 ;;
+--caskroom) echo "$root/Caskroom"; exit 0 ;;
+esac
+echo "$*" >>"$root/log"
+command=$1 kind=$2
+shift 2
+for name; do
+	case $name in -*) continue ;; esac
+	name=${name##*/}
+	[ "$name" != zz-broken ] || { echo "Error: zz-broken failed" >&2; exit 1; }
+	case $command$kind in
+	install--formula) mkdir -p "$root/Cellar/$name/1.0" && ln -s "../Cellar/$name/1.0" "$root/opt/$name" ;;
+	install--cask) mkdir -p "$root/Caskroom/$name/1.0" ;;
+	uninstall--formula) rm -rf "$root/Cellar/$name" "$root/opt/$name" ;;
+	uninstall--cask) rm -rf "$root/Caskroom/$name" ;;
+	esac
+done

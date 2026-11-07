@@ -1,0 +1,93 @@
+description: System packages, through the package manager of the machine
+opstruss: "1.0"
+inputs:
+  packages:
+    type: array
+    items: {type: string}
+    description: Packages that have the same name in every package manager
+    default: []
+  brew:
+    type: array
+    items: {type: string}
+    description: More formulae, for Homebrew only
+    default: []
+  casks:
+    type: array
+    items: {type: string}
+    description: Casks, for Homebrew only
+    default: []
+  apt:
+    type: array
+    items: {type: string}
+    description: More packages, for apt only
+    default: []
+  dnf:
+    type: array
+    items: {type: string}
+    description: More packages, for dnf only
+    default: []
+  manager:
+    type: string
+    enum: [brew, apt, dnf]
+    description: The package manager; without it, brew on macOS, and on Linux apt or dnf by ID and ID_LIKE in /etc/os-release
+  args:
+    type: object
+    description: The input args of the plugin of each package manager, by its name
+    default: {}
+    properties:
+      brew: {type: object}
+      apt: {type: object}
+      dnf: {type: object}
+uses:
+  brew: ../../plugins/brew
+  apt: ../../plugins/apt
+  dnf: ../../plugins/dnf
+locals:
+  release: "${{ opstruss.os == 'linux' ? file('/etc/os-release') : '' }}"
+  manager: >-
+    ${{ has(inputs.manager) ? inputs.manager :
+        opstruss.os == 'darwin' ? 'brew' :
+        locals.release.matches('(?m)^ID(_LIKE)?="?[^\n]*\\b(debian|ubuntu)\\b') ? 'apt' :
+        locals.release.matches('(?m)^ID(_LIKE)?="?[^\n]*\\b(fedora|rhel|centos)\\b') ? 'dnf' : '' }}
+units:
+  brew:
+    uses: brew
+    if: ${{ locals.manager == 'brew' }}
+    with:
+      packages: ${{ inputs.packages + inputs.brew }}
+      casks: ${{ inputs.casks }}
+      args: "${{ has(inputs.args.brew) ? inputs.args.brew : {} }}"
+  apt:
+    uses: apt
+    if: ${{ locals.manager == 'apt' }}
+    sudo: true
+    with:
+      packages: ${{ inputs.packages + inputs.apt }}
+      args: "${{ has(inputs.args.apt) ? inputs.args.apt : {} }}"
+  dnf:
+    uses: dnf
+    if: ${{ locals.manager == 'dnf' }}
+    sudo: true
+    with:
+      packages: ${{ inputs.packages + inputs.dnf }}
+      args: "${{ has(inputs.args.dnf) ? inputs.args.dnf : {} }}"
+  # Fails at up, since a component cannot stop plan with a message.
+  unsupported:
+    if: ${{ locals.manager == '' }}
+    run: echo 'no package manager known for this machine; set manager to brew, apt, or dnf' >&2; exit 1
+outputs:
+  manager:
+    value: ${{ locals.manager }}
+    description: The package manager of the units
+  installed:
+    value: >-
+      ${{ locals.manager == 'brew' ? units.brew.outputs.installed :
+          locals.manager == 'apt' ? units.apt.outputs.installed :
+          locals.manager == 'dnf' ? units.dnf.outputs.installed : null }}
+    description: What the unit installed itself, as the list packages, and casks for brew; destroy removes only these
+  versions:
+    value: >-
+      ${{ locals.manager == 'brew' ? units.brew.outputs.versions :
+          locals.manager == 'apt' ? units.apt.outputs.versions :
+          locals.manager == 'dnf' ? units.dnf.outputs.versions : null }}
+    description: The version of each package of the unit that the package manager has, null for one that it lacks

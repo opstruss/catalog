@@ -9,6 +9,15 @@ Official plugins and components for
 |---|---|---|
 | [tofu](plugins/tofu) | OpenTofu root modules | `tofu` 1.6, `jq` 1.6 |
 | [compose](plugins/compose) | Docker Compose projects | `docker` with Compose 2.23, `jq` 1.6 |
+| [brew](plugins/brew) | Homebrew formulae and casks | `brew`, `jq` 1.6 |
+| [apt](plugins/apt) | Debian and Ubuntu packages, as root | `apt-get`, `dpkg-query`, `jq` 1.6, `sudo` |
+| [dnf](plugins/dnf) | Fedora, RHEL, and other RPM packages, as root | `dnf`, `rpm`, `jq` 1.6, `sudo` |
+
+## Components
+
+| Component | Units of | Uses |
+|---|---|---|
+| [packages](components/packages) | System packages, through the package manager of the machine | brew, apt, dnf |
 
 ## Use
 
@@ -69,7 +78,7 @@ and what they replace keeps working until then.
 | Path | Content |
 |---|---|
 | `plugins/<name>/` | a plugin: `opstruss.plugin.yaml` and its scripts |
-| `components/<name>/` | a component, with `opstruss.yaml`, that uses the plugins of the catalog by path, as `../../plugins/tofu`, once the catalog has one |
+| `components/<name>/` | a component, with `opstruss.yaml`, that uses the plugins of the catalog by path, as `../../plugins/apt` |
 | `lib/` | helpers that the scripts of the plugins load |
 | `examples/<name>/` | plugins that show how one is written, for its authors rather than for projects |
 | `opstruss.catalog.yaml` | marks the root of the catalog, shares `lib`, and names the packages in `packages` |

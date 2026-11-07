@@ -1,0 +1,25 @@
+# last prints an output of the unit as JSON: that of an up which did not
+# finish, kept as pending, before that of the last up that succeeded, and
+# null without either, as for a unit without a record.
+
+env OPSTRUSS_STATE=$WORK/state.json
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; last installed; last count; last missing'
+cmp stdout pending.txt
+
+env OPSTRUSS_STATE=$WORK/done.json
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; last installed'
+stdout '^\{"packages":\["a"\]\}$'
+
+env OPSTRUSS_STATE=
+exec sh -c '. "$CATALOG/lib/opstruss.sh"; last installed'
+stdout '^null$'
+
+-- state.json --
+{"inputs": {}, "outputs": {"installed": {"packages": ["a"]}, "count": 1},
+ "pending": {"op": "up", "outputs": {"installed": {"packages": ["a", "b"]}, "count": null}}}
+-- done.json --
+{"inputs": {}, "outputs": {"installed": {"packages": ["a"]}}}
+-- pending.txt --
+{"packages":["a","b"]}
+1
+null

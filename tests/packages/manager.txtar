@@ -1,0 +1,195 @@
+# The packages of a unit go to the plugin of one package manager: the
+# input manager, or the one of the machine. packages reach every one, the
+# list of a manager and casks only that one, and args by the name of the
+# manager. Changing the manager destroys the unit of the old one, as the
+# state of packages belongs to a machine.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 755 bin/brew
+chmod 755 bin/sudo
+chmod 755 bin/dpkg-query
+chmod 755 bin/apt-get
+chmod 755 bin/rpm
+chmod 755 bin/dnf
+symlink catalog -> $CATALOG
+mkdir brew/Cellar brew/opt brew/Caskroom
+
+exec opstruss validate
+stdout '^valid$'
+
+exec opstruss up --yes
+stdout '^default/tools/apt: will run: new; plan: create package.fd-find, create package.git$'
+! stdout 'tools/(brew|dnf|unsupported)'
+grep ' install -y --no-install-recommends fd-find git$' apt.log
+exec opstruss outputs
+cmp stdout outputs.txt
+
+cp brew.yaml opstruss.yaml
+exec opstruss up --yes
+stdout '^default/tools/apt: will be destroyed: its instance is no longer in if or for_each$'
+stdout '^default/tools/brew: will run: new; plan: create package.fd, create package.git, create cask.firefox$'
+grep ' remove -y fd-find git$' apt.log
+grep '^install --formula fd git$' brew/log
+
+cp detect.yaml opstruss.yaml
+exec opstruss plan
+[darwin] stdout '^default/tools/brew: unchanged$'
+[linux] stdout '^default/tools/(apt|dnf|unsupported): will run: new'
+
+exec opstruss destroy --yes
+grep '^uninstall --formula fd git$' brew/log
+
+-- opstruss.yaml --
+name: app
+uses:
+  packages: ./catalog/components/packages
+units:
+  tools:
+    uses: packages
+    with:
+      manager: apt
+      packages: [git]
+      apt: [fd-find]
+      dnf: [fd-find]
+      brew: [fd]
+      casks: [firefox]
+      args:
+        apt: {install: [--no-install-recommends]}
+outputs:
+  manager: ${{ units.tools.outputs.manager }}
+  installed: ${{ units.tools.outputs.installed }}
+  versions: ${{ units.tools.outputs.versions }}
+-- brew.yaml --
+name: app
+uses:
+  packages: ./catalog/components/packages
+units:
+  tools:
+    uses: packages
+    with:
+      manager: brew
+      packages: [git]
+      apt: [fd-find]
+      brew: [fd]
+      casks: [firefox]
+-- detect.yaml --
+name: app
+uses:
+  packages: ./catalog/components/packages
+units:
+  tools:
+    uses: packages
+    with:
+      packages: [git]
+      brew: [fd]
+      casks: [firefox]
+-- outputs.txt --
+installed: {"packages":["fd-find","git"]}
+manager: apt
+versions: {"fd-find":"1.0","git":"1.0"}
+-- dpkg --
+-- rpmdb --
+-- bin/brew --
+#!/bin/sh
+# A Homebrew of the test, in brew/ next to bin/: a formula or cask
+# installs as version 1.0, and one named zz-broken fails.
+root=$(cd "$(dirname "$0")/../brew" && pwd)
+case $1 in
+--prefix) echo "$root"; exit 0 ;;
+--cellar) echo "$root/Cellar"; exit 0 ;;
+--caskroom) echo "$root/Caskroom"; exit 0 ;;
+esac
+echo "$*" >>"$root/log"
+command=$1 kind=$2
+shift 2
+for name; do
+	case $name in -*) continue ;; esac
+	name=${name##*/}
+	[ "$name" != zz-broken ] || { echo "Error: zz-broken failed" >&2; exit 1; }
+	case $command$kind in
+	install--formula) mkdir -p "$root/Cellar/$name/1.0" && ln -s "../Cellar/$name/1.0" "$root/opt/$name" ;;
+	install--cask) mkdir -p "$root/Caskroom/$name/1.0" ;;
+	uninstall--formula) rm -rf "$root/Cellar/$name" "$root/opt/$name" ;;
+	uninstall--cask) rm -rf "$root/Caskroom/$name" ;;
+	esac
+done
+-- bin/sudo --
+#!/bin/sh
+# A sudo of the test: it logs its arguments, asks for no password, and
+# runs the command as the same user.
+echo "$*" >>"$(dirname "$0")/../sudo.log"
+while [ $# -gt 0 ]; do
+	case $1 in
+	-p) shift 2 ;;
+	--) shift; break ;;
+	-*) shift ;;
+	*) break ;;
+	esac
+done
+[ $# -gt 0 ] || exit 0
+SUDO_USER=$(id -un) SUDO_UID=$(id -u) SUDO_GID=$(id -g)
+export SUDO_USER SUDO_UID SUDO_GID
+exec "$@"
+-- bin/dpkg-query --
+#!/bin/sh
+# A dpkg of the test: each line of dpkg next to bin/ is a package that it
+# has installed, with its version.
+while IFS='	' read -r name version; do
+	printf '%s\t%s\tii \t%s\n' "$name" "$name" "$version"
+done <"$(dirname "$0")/../dpkg"
+-- bin/apt-get --
+#!/bin/sh
+# An apt-get of the test: install adds each package as version 1.0 to dpkg
+# next to bin/, one named zz-broken fails, and remove takes it away.
+root=$(cd "$(dirname "$0")/.." && pwd)
+echo "$*" >>"$root/apt.log"
+echo "DEBIAN_FRONTEND=$DEBIAN_FRONTEND" >"$root/frontend"
+while [ $# -gt 0 ]; do
+	case $1 in
+	-o) shift 2 ;;
+	-*) shift ;;
+	*) break ;;
+	esac
+done
+command=$1
+shift
+for name; do
+	case $name in -*) continue ;; esac
+	case $command in
+	install)
+		[ "$name" != zz-broken ] || { echo "E: Sub-process /usr/bin/dpkg returned an error code (1)" >&2; exit 100; }
+		printf '%s\t1.0\n' "$name" >>"$root/dpkg"
+		;;
+	remove)
+		grep -v "^$name	" "$root/dpkg" >"$root/dpkg.new" || true
+		mv "$root/dpkg.new" "$root/dpkg"
+		;;
+	esac
+done
+-- bin/rpm --
+#!/bin/sh
+# An rpm of the test: each line of rpmdb next to bin/ is a package that it
+# has installed, with its architecture and version.
+cat "$(dirname "$0")/../rpmdb"
+-- bin/dnf --
+#!/bin/sh
+# A dnf of the test: install adds each package as version 1.0-1 to rpmdb
+# next to bin/, one named zz-broken fails, and remove takes it away.
+root=$(cd "$(dirname "$0")/.." && pwd)
+echo "$*" >>"$root/dnf.log"
+command=$1
+shift
+for name; do
+	case $name in -*) continue ;; esac
+	case $command in
+	install)
+		[ "$name" != zz-broken ] || { echo "Error: Transaction test error" >&2; exit 1; }
+		printf '%s\tx86_64\t1.0-1\n' "$name" >>"$root/rpmdb"
+		;;
+	remove)
+		grep -v "^$name	" "$root/rpmdb" >"$root/rpmdb.new" || true
+		mv "$root/rpmdb.new" "$root/rpmdb"
+		;;
+	esac
+done

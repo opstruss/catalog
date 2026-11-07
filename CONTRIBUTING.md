@@ -121,6 +121,7 @@ tool to stop as the tool does, then ends with 130 or 143.
 | `scratch` | set `$tmp` to a directory for the files of the call, which goes when the script ends |
 | `color` | whether the tool may print in color |
 | `output NAME VALUE` | one output, which OpsTruss reads by its declared type |
+| `last NAME` | the output of the unit as JSON: of an `up` that did not finish, or else of the last one; for an output that names what the unit made |
 | `unchanged` | say that the call changed nothing |
 | `approved DIGEST` | whether `up` is about to apply the plan that was approved |
 | `fail MESSAGE…` | one line to stderr, then exit 1 |

@@ -17,8 +17,8 @@
 #
 # The helpers need jq 1.6 or later. A plugin does not define their names
 # again: approved, at_least, color, fail, input, input_file, known_keys,
-# main, output, paths, run_with, scratch, sha256, unchanged, and words;
-# scratch sets tmp.
+# last, main, output, paths, run_with, scratch, sha256, unchanged, and
+# words; scratch sets tmp.
 #
 # This file is not a public API; it changes with the plugins of the catalog.
 
@@ -166,6 +166,20 @@ output() {
 		opstruss_end=${opstruss_end}_
 	done
 	printf '%s<<%s\n%s\n%s\n' "$1" "$opstruss_end" "$2" "$opstruss_end" >>"$OPSTRUSS_OUTPUT"
+}
+
+# last prints the output $1 of the unit as JSON, or null without one: the
+# value that an up which failed or stopped part way gave, which OpsTruss
+# keeps as pending, or else that of the last up that succeeded; for
+# destroy, that of what the call takes away. A plugin whose output names
+# what it made, as packages, reads it there.
+last() {
+	if [ -z "${OPSTRUSS_STATE:-}" ]; then
+		echo null
+		return
+	fi
+	jq -c --arg name "$1" '
+		if .pending.outputs[$name] != null then .pending.outputs[$name] else .outputs[$name] end' "$OPSTRUSS_STATE"
 }
 
 # unchanged writes the result of a call that changed nothing. Without it, a

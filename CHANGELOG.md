@@ -32,6 +32,16 @@ or a later version of a tool says so first, under Upgrade notes.
   service waits for it to complete, as for a migration. It asks for every
   variable, so `pass:` alone says which reach Compose, and a `.env` file
   reaches it only through `env_files`.
+- `brew`, `apt`, and `dnf` plugins: system packages as units, through
+  Homebrew, apt-get, and dnf. A unit installs what the machine lacks, and
+  `destroy` removes only what the unit installed itself, also what an
+  `up` that failed installed; a package that was there before stays.
+  `apt` and `dnf` run `up` and `destroy` as root, which `sudo: true` on
+  the unit allows; `plan` and `status` run as the operator. `args` adds
+  arguments to install and remove, as `--no-install-recommends`.
+- `packages` component: one list of packages for the package manager of
+  the machine, brew on macOS, apt or dnf by `/etc/os-release` on Linux,
+  or the input `manager`, with lists and `args` for each one.
 - `tofu` and `compose` print in color unless OpsTruss sets `NO_COLOR`,
   which it does when it shows the output of a run without color.
 - `compose` shows the progress of Compose at a terminal, as `docker

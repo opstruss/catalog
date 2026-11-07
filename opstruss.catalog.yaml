@@ -1,5 +1,5 @@
 opstruss: "1.0"
 shared: [lib]
-# The packages, used as ops.<name>: each plugin in plugins/; components/*
-# joins the list with the first component.
-packages: [plugins/*]
+# The packages, used as ops.<name>: each plugin in plugins/ and each
+# component in components/.
+packages: [plugins/*, components/*]

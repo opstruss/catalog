@@ -1,0 +1,146 @@
+# Debian packages as a unit, as root through sudo. plan and status read
+# dpkg as the operator; up updates the lists, installs what dpkg lacks
+# without questions, and keeps it as the unit's own; a package that was
+# there before the unit is never removed; a name dropped from the list
+# removes what the unit installed; destroy removes only what the unit
+# installed; args reach apt-get before the names.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 755 bin/apt-get
+chmod 755 bin/dpkg-query
+chmod 755 bin/sudo
+symlink catalog -> $CATALOG
+
+exec opstruss validate
+stdout '^valid$'
+
+exec opstruss plan
+stdout '^default/tools: will run: new; plan: create package.git, create package.jq$'
+! exists sudo.log
+
+exec opstruss up --yes
+stdout '^default/tools: up: done$'
+grep -count=1 ' __sudo$' sudo.log
+grep '^-o DPkg::Lock::Timeout=300 -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold update$' apt.log
+grep ' install -y --no-install-recommends git jq$' apt.log
+grep '^DEBIAN_FRONTEND=noninteractive$' frontend
+exec opstruss outputs
+cmp stdout outputs.txt
+
+exec opstruss plan
+stdout '^default/tools: unchanged$'
+exec opstruss status
+stdout '^default/tools \| package coreutils: 9.1-1$'
+stdout '^default/tools \| package git: 1.0, installed by this unit$'
+grep -count=1 ' __sudo$' sudo.log
+
+cp dropped.yaml opstruss.yaml
+exec opstruss plan
+stdout 'plan: delete package.jq$'
+exec opstruss up --yes
+grep ' remove -y jq$' apt.log
+grep -count=1 ' update$' apt.log
+
+exec opstruss destroy --yes
+grep ' remove -y git$' apt.log
+grep '^coreutils' dpkg
+! grep 'coreutils' apt.log
+grep -count=3 ' __sudo$' sudo.log
+
+cp unasked.yaml opstruss.yaml
+! exec opstruss validate
+stderr 'unit tools: plugin apt runs destroy and up with sudo; allow it with sudo: true on the unit'
+
+-- opstruss.yaml --
+name: app
+uses:
+  apt: ./catalog/plugins/apt
+units:
+  tools:
+    uses: apt
+    sudo: true
+    with:
+      packages: [coreutils, git, jq]
+      args:
+        install: [--no-install-recommends]
+outputs:
+  installed: ${{ units.tools.outputs.installed }}
+  versions: ${{ units.tools.outputs.versions }}
+-- dropped.yaml --
+name: app
+uses:
+  apt: ./catalog/plugins/apt
+units:
+  tools:
+    uses: apt
+    sudo: true
+    with:
+      packages: [coreutils, git]
+-- unasked.yaml --
+name: app
+uses:
+  apt: ./catalog/plugins/apt
+units:
+  tools:
+    uses: apt
+    with:
+      packages: [git]
+-- outputs.txt --
+installed: {"packages":["git","jq"]}
+versions: {"coreutils":"9.1-1","git":"1.0","jq":"1.0"}
+-- dpkg --
+coreutils	9.1-1
+-- bin/sudo --
+#!/bin/sh
+# A sudo of the test: it logs its arguments, asks for no password, and
+# runs the command as the same user.
+echo "$*" >>"$(dirname "$0")/../sudo.log"
+while [ $# -gt 0 ]; do
+	case $1 in
+	-p) shift 2 ;;
+	--) shift; break ;;
+	-*) shift ;;
+	*) break ;;
+	esac
+done
+[ $# -gt 0 ] || exit 0
+SUDO_USER=$(id -un) SUDO_UID=$(id -u) SUDO_GID=$(id -g)
+export SUDO_USER SUDO_UID SUDO_GID
+exec "$@"
+-- bin/dpkg-query --
+#!/bin/sh
+# A dpkg of the test: each line of dpkg next to bin/ is a package that it
+# has installed, with its version.
+while IFS='	' read -r name version; do
+	printf '%s\t%s\tii \t%s\n' "$name" "$name" "$version"
+done <"$(dirname "$0")/../dpkg"
+-- bin/apt-get --
+#!/bin/sh
+# An apt-get of the test: install adds each package as version 1.0 to dpkg
+# next to bin/, one named zz-broken fails, and remove takes it away.
+root=$(cd "$(dirname "$0")/.." && pwd)
+echo "$*" >>"$root/apt.log"
+echo "DEBIAN_FRONTEND=$DEBIAN_FRONTEND" >"$root/frontend"
+while [ $# -gt 0 ]; do
+	case $1 in
+	-o) shift 2 ;;
+	-*) shift ;;
+	*) break ;;
+	esac
+done
+command=$1
+shift
+for name; do
+	case $name in -*) continue ;; esac
+	case $command in
+	install)
+		[ "$name" != zz-broken ] || { echo "E: Sub-process /usr/bin/dpkg returned an error code (1)" >&2; exit 100; }
+		printf '%s\t1.0\n' "$name" >>"$root/dpkg"
+		;;
+	remove)
+		grep -v "^$name	" "$root/dpkg" >"$root/dpkg.new" || true
+		mv "$root/dpkg.new" "$root/dpkg"
+		;;
+	esac
+done

@@ -1,0 +1,45 @@
+name: apt
+description: Debian and Ubuntu packages, through apt-get
+opstruss: "1.0"
+requires: [apt-get, dpkg-query, jq]
+inputs:
+  packages:
+    type: array
+    items:
+      type: string
+      pattern: '^[a-z0-9][a-z0-9+.-]*(:[a-z0-9-]+)?$'
+    description: The packages of the unit, by name, as name:arch for another architecture
+    default: []
+  args:
+    type: object
+    description: Arguments that apt-get gets after those of the plugin, by command
+    default: {}
+    properties:
+      install:
+        type: array
+        items: {type: string}
+      remove:
+        type: array
+        items: {type: string}
+outputs:
+  installed:
+    type: object
+    description: What the unit installed itself, as the list packages; destroy removes only these
+  versions:
+    type: object
+    description: The version of each package of the unit that dpkg has, null for one that it lacks
+tasks:
+  plan:
+    run: [./apt.sh, plan]
+  up:
+    run: [./apt.sh, up]
+    sudo: true
+    tty: true
+    stop: {grace: 5m}
+  destroy:
+    run: [./apt.sh, destroy]
+    sudo: true
+    tty: true
+    stop: {grace: 5m}
+  status:
+    run: [./apt.sh, status]

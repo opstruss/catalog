@@ -1,0 +1,103 @@
+# Formulae and casks as a unit. plan names what Homebrew lacks; up installs
+# it and keeps it as the unit's own; a formula that was there before the
+# unit is never uninstalled; a name dropped from the list uninstalls what
+# the unit installed; one uninstalled outside OpsTruss is planned again;
+# destroy uninstalls only what the unit installed.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 755 bin/brew
+symlink catalog -> $CATALOG
+mkdir brew/Cellar/figlet/2.2.5 brew/opt brew/Caskroom
+symlink brew/opt/figlet -> ../Cellar/figlet/2.2.5
+
+exec opstruss validate
+stdout '^valid$'
+
+exec opstruss plan
+stdout '^default/tools: will run: new; plan: create package.hello, create cask.firefox$'
+
+exec opstruss up --yes
+stdout '^default/tools: up: done$'
+grep '^install --formula homebrew/core/hello$' brew/log
+grep '^install --cask firefox$' brew/log
+exec opstruss outputs
+cmp stdout outputs.txt
+
+exec opstruss plan
+stdout '^default/tools: unchanged$'
+
+exec opstruss status
+stdout '^default/tools \| package figlet: 2.2.5$'
+stdout '^default/tools \| package hello: 1.0, installed by this unit$'
+stdout '^default/tools \| cask firefox: 1.0, installed by this unit$'
+
+cp dropped.yaml opstruss.yaml
+exec opstruss plan
+stdout 'plan: delete package.hello$'
+exec opstruss up --yes
+grep '^uninstall --formula hello$' brew/log
+! exists brew/Cellar/hello
+
+rm brew/Caskroom/firefox
+exec opstruss plan
+stdout 'plan: create cask.firefox$'
+exec opstruss up --yes
+
+exec opstruss destroy --yes
+grep '^uninstall --cask firefox$' brew/log
+exists brew/Cellar/figlet/2.2.5
+! grep 'figlet' brew/log
+
+-- opstruss.yaml --
+name: app
+uses:
+  brew: ./catalog/plugins/brew
+units:
+  tools:
+    uses: brew
+    with:
+      packages: [figlet, homebrew/core/hello]
+      casks: [firefox]
+outputs:
+  installed: ${{ units.tools.outputs.installed }}
+  versions: ${{ units.tools.outputs.versions }}
+  casks: ${{ units.tools.outputs.casks }}
+-- dropped.yaml --
+name: app
+uses:
+  brew: ./catalog/plugins/brew
+units:
+  tools:
+    uses: brew
+    with:
+      packages: [figlet]
+      casks: [firefox]
+-- outputs.txt --
+casks: {"firefox":"1.0"}
+installed: {"casks":["firefox"],"packages":["hello"]}
+versions: {"figlet":"2.2.5","hello":"1.0"}
+-- bin/brew --
+#!/bin/sh
+# A Homebrew of the test, in brew/ next to bin/: a formula or cask
+# installs as version 1.0, and one named zz-broken fails.
+root=$(cd "$(dirname "$0")/../brew" && pwd)
+case $1 in
+--prefix) echo "$root"; exit 0 ;;
+--cellar) echo "$root/Cellar"; exit 0 ;;
+--caskroom) echo "$root/Caskroom"; exit 0 ;;
+esac
+echo "$*" >>"$root/log"
+command=$1 kind=$2
+shift 2
+for name; do
+	case $name in -*) continue ;; esac
+	name=${name##*/}
+	[ "$name" != zz-broken ] || { echo "Error: zz-broken failed" >&2; exit 1; }
+	case $command$kind in
+	install--formula) mkdir -p "$root/Cellar/$name/1.0" && ln -s "../Cellar/$name/1.0" "$root/opt/$name" ;;
+	install--cask) mkdir -p "$root/Caskroom/$name/1.0" ;;
+	uninstall--formula) rm -rf "$root/Cellar/$name" "$root/opt/$name" ;;
+	uninstall--cask) rm -rf "$root/Caskroom/$name" ;;
+	esac
+done

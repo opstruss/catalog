@@ -1,0 +1,116 @@
+# What an up that fails part way installed stays the unit's own, through
+# sudo too: the next up takes it over without installing it again, and
+# destroy right after a failure removes it beside what the last up that
+# succeeded installed.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 755 bin/apt-get
+chmod 755 bin/dpkg-query
+chmod 755 bin/sudo
+symlink catalog -> $CATALOG
+
+! exec opstruss up --yes
+stdout '^default/tools \| E: Sub-process /usr/bin/dpkg returned an error code \(1\)$'
+grep '^git	1.0$' dpkg
+cp fixed.yaml opstruss.yaml
+exec opstruss up --yes
+! grep ' install -y git$' apt.log
+exec opstruss outputs
+stdout '^installed: \{"packages":\["git"\]\}$'
+
+cp more.yaml opstruss.yaml
+! exec opstruss up --yes
+grep '^jq	1.0$' dpkg
+exec opstruss destroy --yes
+grep ' remove -y git jq$' apt.log
+grep -count=1 '^coreutils' dpkg
+! grep 'git|jq' dpkg
+
+-- opstruss.yaml --
+name: app
+uses:
+  apt: ./catalog/plugins/apt
+units:
+  tools:
+    uses: apt
+    sudo: true
+    with:
+      packages: [git, zz-broken]
+-- fixed.yaml --
+name: app
+uses:
+  apt: ./catalog/plugins/apt
+units:
+  tools:
+    uses: apt
+    sudo: true
+    with:
+      packages: [git]
+outputs:
+  installed: ${{ units.tools.outputs.installed }}
+-- more.yaml --
+name: app
+uses:
+  apt: ./catalog/plugins/apt
+units:
+  tools:
+    uses: apt
+    sudo: true
+    with:
+      packages: [git, jq, zz-broken]
+-- dpkg --
+coreutils	9.1-1
+-- bin/sudo --
+#!/bin/sh
+# A sudo of the test: it logs its arguments, asks for no password, and
+# runs the command as the same user.
+echo "$*" >>"$(dirname "$0")/../sudo.log"
+while [ $# -gt 0 ]; do
+	case $1 in
+	-p) shift 2 ;;
+	--) shift; break ;;
+	-*) shift ;;
+	*) break ;;
+	esac
+done
+[ $# -gt 0 ] || exit 0
+SUDO_USER=$(id -un) SUDO_UID=$(id -u) SUDO_GID=$(id -g)
+export SUDO_USER SUDO_UID SUDO_GID
+exec "$@"
+-- bin/dpkg-query --
+#!/bin/sh
+# A dpkg of the test: each line of dpkg next to bin/ is a package that it
+# has installed, with its version.
+while IFS='	' read -r name version; do
+	printf '%s\t%s\tii \t%s\n' "$name" "$name" "$version"
+done <"$(dirname "$0")/../dpkg"
+-- bin/apt-get --
+#!/bin/sh
+# An apt-get of the test: install adds each package as version 1.0 to dpkg
+# next to bin/, one named zz-broken fails, and remove takes it away.
+root=$(cd "$(dirname "$0")/.." && pwd)
+echo "$*" >>"$root/apt.log"
+echo "DEBIAN_FRONTEND=$DEBIAN_FRONTEND" >"$root/frontend"
+while [ $# -gt 0 ]; do
+	case $1 in
+	-o) shift 2 ;;
+	-*) shift ;;
+	*) break ;;
+	esac
+done
+command=$1
+shift
+for name; do
+	case $name in -*) continue ;; esac
+	case $command in
+	install)
+		[ "$name" != zz-broken ] || { echo "E: Sub-process /usr/bin/dpkg returned an error code (1)" >&2; exit 100; }
+		printf '%s\t1.0\n' "$name" >>"$root/dpkg"
+		;;
+	remove)
+		grep -v "^$name	" "$root/dpkg" >"$root/dpkg.new" || true
+		mv "$root/dpkg.new" "$root/dpkg"
+		;;
+	esac
+done

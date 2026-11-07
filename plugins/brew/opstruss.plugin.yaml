@@ -1,0 +1,54 @@
+name: brew
+description: Homebrew formulae and casks
+opstruss: "1.0"
+requires: [brew, jq]
+env: ['HOMEBREW_*']
+inputs:
+  packages:
+    type: array
+    items:
+      type: string
+      pattern: '^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/)?[A-Za-z0-9][A-Za-z0-9@._+-]*$'
+    description: The formulae of the unit, by the names that brew list prints; owner/tap/name installs one from a tap
+    default: []
+  casks:
+    type: array
+    items:
+      type: string
+      pattern: '^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/)?[A-Za-z0-9][A-Za-z0-9@._+-]*$'
+    description: The casks of the unit, by the names that brew list --cask prints
+    default: []
+  args:
+    type: object
+    description: Arguments that brew gets after those of the plugin, by command
+    default: {}
+    properties:
+      install:
+        type: array
+        items: {type: string}
+      uninstall:
+        type: array
+        items: {type: string}
+outputs:
+  installed:
+    type: object
+    description: What the unit installed itself, as the lists packages and casks; destroy uninstalls only these
+  versions:
+    type: object
+    description: The version of each formula of the unit that Homebrew has, null for one that it lacks
+  casks:
+    type: object
+    description: The version of each cask of the unit that Homebrew has, null for one that it lacks
+tasks:
+  plan:
+    run: [./brew.sh, plan]
+  up:
+    run: [./brew.sh, up]
+    tty: true
+    stop: {grace: 1m}
+  destroy:
+    run: [./brew.sh, destroy]
+    tty: true
+    stop: {grace: 1m}
+  status:
+    run: [./brew.sh, status]

@@ -1,0 +1,86 @@
+# What an up that fails part way installed stays the unit's own: the next
+# up takes it over without installing it again, and destroy uninstalls it,
+# also right after the failure, beside what the last up that succeeded
+# installed.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 755 bin/brew
+symlink catalog -> $CATALOG
+mkdir brew/Cellar brew/opt brew/Caskroom
+
+! exec opstruss up --yes
+stdout '^default/tools \| Error: zz-broken failed$'
+exists brew/Cellar/hello/1.0
+exec opstruss destroy --yes
+grep '^uninstall --formula hello$' brew/log
+! exists brew/Cellar/hello
+
+! exec opstruss up --yes
+cp fixed.yaml opstruss.yaml
+cp brew/log log-before
+exec opstruss up --yes
+cmp brew/log log-before
+exec opstruss outputs
+stdout '^installed: \{"casks":\[\],"packages":\["hello"\]\}$'
+
+cp more.yaml opstruss.yaml
+! exec opstruss up --yes
+exists brew/Cellar/jq/1.0
+exec opstruss destroy --yes
+grep '^uninstall --formula hello jq$' brew/log
+! exists brew/Cellar/jq
+
+-- opstruss.yaml --
+name: app
+uses:
+  brew: ./catalog/plugins/brew
+units:
+  tools:
+    uses: brew
+    with:
+      packages: [hello, zz-broken]
+-- fixed.yaml --
+name: app
+uses:
+  brew: ./catalog/plugins/brew
+units:
+  tools:
+    uses: brew
+    with:
+      packages: [hello]
+outputs:
+  installed: ${{ units.tools.outputs.installed }}
+-- more.yaml --
+name: app
+uses:
+  brew: ./catalog/plugins/brew
+units:
+  tools:
+    uses: brew
+    with:
+      packages: [hello, jq, zz-broken]
+-- bin/brew --
+#!/bin/sh
+# A Homebrew of the test, in brew/ next to bin/: a formula or cask
+# installs as version 1.0, and one named zz-broken fails.
+root=$(cd "$(dirname "$0")/../brew" && pwd)
+case $1 in
+--prefix) echo "$root"; exit 0 ;;
+--cellar) echo "$root/Cellar"; exit 0 ;;
+--caskroom) echo "$root/Caskroom"; exit 0 ;;
+esac
+echo "$*" >>"$root/log"
+command=$1 kind=$2
+shift 2
+for name; do
+	case $name in -*) continue ;; esac
+	name=${name##*/}
+	[ "$name" != zz-broken ] || { echo "Error: zz-broken failed" >&2; exit 1; }
+	case $command$kind in
+	install--formula) mkdir -p "$root/Cellar/$name/1.0" && ln -s "../Cellar/$name/1.0" "$root/opt/$name" ;;
+	install--cask) mkdir -p "$root/Caskroom/$name/1.0" ;;
+	uninstall--formula) rm -rf "$root/Cellar/$name" "$root/opt/$name" ;;
+	uninstall--cask) rm -rf "$root/Caskroom/$name" ;;
+	esac
+done

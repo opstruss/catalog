@@ -1,0 +1,45 @@
+name: dnf
+description: Fedora, RHEL, and other RPM packages, through dnf
+opstruss: "1.0"
+requires: [dnf, rpm, jq]
+inputs:
+  packages:
+    type: array
+    items:
+      type: string
+      pattern: '^[A-Za-z0-9][A-Za-z0-9._+-]*$'
+    description: The packages of the unit, by name, as name.arch for another architecture
+    default: []
+  args:
+    type: object
+    description: Arguments that dnf gets after those of the plugin, by command
+    default: {}
+    properties:
+      install:
+        type: array
+        items: {type: string}
+      remove:
+        type: array
+        items: {type: string}
+outputs:
+  installed:
+    type: object
+    description: What the unit installed itself, as the list packages; destroy removes only these
+  versions:
+    type: object
+    description: The version of each package of the unit that rpm has, null for one that it lacks
+tasks:
+  plan:
+    run: [./dnf.sh, plan]
+  up:
+    run: [./dnf.sh, up]
+    sudo: true
+    tty: true
+    stop: {grace: 5m}
+  destroy:
+    run: [./dnf.sh, destroy]
+    sudo: true
+    tty: true
+    stop: {grace: 5m}
+  status:
+    run: [./dnf.sh, status]

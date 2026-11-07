@@ -1,0 +1,137 @@
+# RPM packages as a unit, as root through sudo. plan and status read rpm
+# as the operator; up installs what rpm lacks without questions and keeps
+# it as the unit's own; a package that was there before the unit is never
+# removed, also when named with its architecture; a name dropped from the
+# list removes what the unit installed; destroy removes only what the unit
+# installed, and nothing once that is gone; args reach dnf before the names.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 755 bin/dnf
+chmod 755 bin/rpm
+chmod 755 bin/sudo
+symlink catalog -> $CATALOG
+
+exec opstruss validate
+stdout '^valid$'
+
+exec opstruss plan
+stdout '^default/tools: will run: new; plan: create package.git, create package.jq$'
+! exists sudo.log
+
+exec opstruss up --yes
+stdout '^default/tools: up: done$'
+grep -count=1 ' __sudo$' sudo.log
+grep '^install -y --setopt=install_weak_deps=False git jq$' dnf.log
+exec opstruss outputs
+cmp stdout outputs.txt
+
+exec opstruss plan
+stdout '^default/tools: unchanged$'
+exec opstruss status
+stdout '^default/tools \| package coreutils.x86_64: 9.1-1.fc41$'
+stdout '^default/tools \| package git: 1.0-1, installed by this unit$'
+grep -count=1 ' __sudo$' sudo.log
+
+cp dropped.yaml opstruss.yaml
+exec opstruss plan
+stdout 'plan: delete package.jq$'
+exec opstruss up --yes
+grep '^remove -y jq$' dnf.log
+
+cp rpmdb-without-git rpmdb
+exec opstruss destroy --yes
+stdout '^default/tools \| the unit installed nothing that rpm still has$'
+! grep 'remove -y git' dnf.log
+grep '^coreutils' rpmdb
+! grep 'coreutils' dnf.log
+grep -count=3 ' __sudo$' sudo.log
+
+cp unasked.yaml opstruss.yaml
+! exec opstruss validate
+stderr 'unit tools: plugin dnf runs destroy and up with sudo; allow it with sudo: true on the unit'
+
+-- opstruss.yaml --
+name: app
+uses:
+  dnf: ./catalog/plugins/dnf
+units:
+  tools:
+    uses: dnf
+    sudo: true
+    with:
+      packages: [coreutils.x86_64, git, jq]
+      args:
+        install: [--setopt=install_weak_deps=False]
+outputs:
+  installed: ${{ units.tools.outputs.installed }}
+  versions: ${{ units.tools.outputs.versions }}
+-- dropped.yaml --
+name: app
+uses:
+  dnf: ./catalog/plugins/dnf
+units:
+  tools:
+    uses: dnf
+    sudo: true
+    with:
+      packages: [coreutils.x86_64, git]
+-- unasked.yaml --
+name: app
+uses:
+  dnf: ./catalog/plugins/dnf
+units:
+  tools:
+    uses: dnf
+    with:
+      packages: [git]
+-- outputs.txt --
+installed: {"packages":["git","jq"]}
+versions: {"coreutils.x86_64":"9.1-1.fc41","git":"1.0-1","jq":"1.0-1"}
+-- rpmdb --
+coreutils	x86_64	9.1-1.fc41
+-- rpmdb-without-git --
+coreutils	x86_64	9.1-1.fc41
+-- bin/sudo --
+#!/bin/sh
+# A sudo of the test: it logs its arguments, asks for no password, and
+# runs the command as the same user.
+echo "$*" >>"$(dirname "$0")/../sudo.log"
+while [ $# -gt 0 ]; do
+	case $1 in
+	-p) shift 2 ;;
+	--) shift; break ;;
+	-*) shift ;;
+	*) break ;;
+	esac
+done
+[ $# -gt 0 ] || exit 0
+SUDO_USER=$(id -un) SUDO_UID=$(id -u) SUDO_GID=$(id -g)
+export SUDO_USER SUDO_UID SUDO_GID
+exec "$@"
+-- bin/rpm --
+#!/bin/sh
+# An rpm of the test: each line of rpmdb next to bin/ is a package that it
+# has installed, with its architecture and version.
+cat "$(dirname "$0")/../rpmdb"
+-- bin/dnf --
+#!/bin/sh
+# A dnf of the test: install adds each package as version 1.0-1 to rpmdb
+# next to bin/, one named zz-broken fails, and remove takes it away.
+root=$(cd "$(dirname "$0")/.." && pwd)
+echo "$*" >>"$root/dnf.log"
+command=$1
+shift
+for name; do
+	case $name in -*) continue ;; esac
+	case $command in
+	install)
+		[ "$name" != zz-broken ] || { echo "Error: Transaction test error" >&2; exit 1; }
+		printf '%s\tx86_64\t1.0-1\n' "$name" >>"$root/rpmdb"
+		;;
+	remove)
+		grep -v "^$name	" "$root/rpmdb" >"$root/rpmdb.new" || true
+		mv "$root/rpmdb.new" "$root/rpmdb"
+		;;
+	esac
+done
