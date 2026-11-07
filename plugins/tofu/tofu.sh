@@ -15,9 +15,8 @@
 #
 # The lock file of the providers, .terraform.lock.hcl, belongs to the
 # module: its user commits it, and every unit that uses the module shares
-# it, as Terraform workspaces share one configuration. A module that
-# cannot be written, as a remote source, needs one that covers its
-# providers.
+# it. A module that cannot be written, as a remote source, needs one that
+# covers its providers.
 #
 # shellcheck source-path=SCRIPTDIR source=../../lib/opstruss.sh
 . "$OPSTRUSS_PLUGIN_DIR/../../lib/opstruss.sh"

@@ -1,8 +1,8 @@
-# The lock file of the providers belongs to the module, as in Terraform:
-# the first init writes .terraform.lock.hcl next to the module, for its
-# user to commit, and the units that use the module share it. A module
-# that cannot be written, as a remote one, needs a lock file that covers
-# its providers. The providers come from the registry.
+# The lock file of the providers belongs to the module: the first init
+# writes .terraform.lock.hcl next to the module, for its user to commit,
+# and the units that use the module share it. A module that cannot be
+# written, as a remote one, needs a lock file that covers its providers.
+# The providers come from the registry.
 
 env HOME=$WORK/home
 symlink catalog -> $CATALOG
