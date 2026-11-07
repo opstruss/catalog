@@ -32,7 +32,7 @@ units:
 Values of other units reach the Compose files through `env:` of the unit,
 as variables that Compose interpolates, such as `image: ${IMAGE}`. The
 plugin can also be declared alone, as
-`compose: github.com/opstruss/catalog/plugins/compose@v1`, for units that
+`compose: github.com/opstruss/catalog/compose@v1`, for units that
 use it as `compose`.
 
 ## Inputs

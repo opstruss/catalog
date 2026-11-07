@@ -29,7 +29,7 @@ units:
 
 Other units read the outputs of the module as
 `${{ units.dns.outputs.<name> }}`. The plugin can also be declared
-alone, as `tofu: github.com/opstruss/catalog/plugins/tofu@v1`, for units
+alone, as `tofu: github.com/opstruss/catalog/tofu@v1`, for units
 that use it as `tofu`.
 
 ## Inputs
