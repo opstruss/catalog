@@ -270,6 +270,12 @@ whole catalog with one, in every project that declares it.
 A release is an annotated tag `vX.Y.Z` on a commit whose `CHANGELOG.md`
 has the section `## [X.Y.Z] - YYYY-MM-DD`, which was `[Unreleased]`. The
 `release` workflow publishes it with that section as its notes, and moves
-`vX` to it unless a later `vX` release exists. A tag `<name>-vX.Y.Z` only
+`vX` to it unless a later `vX` release exists.
+
+A release candidate is an annotated tag `vX.Y.Z-rc.N`, with N from 1, on
+a commit of `main`, while `CHANGELOG.md` keeps `[Unreleased]`. The
+workflow publishes it as a pre-release, with that section after an
+opening that says what it is, and moves `vX` to it only before the first
+`vX` release, since the docs write `@v1` then. A tag `<name>-vX.Y.Z` only
 names the release assets of a compiled plugin. A branch never takes the
 name of a tag: one that keeps `v1` after `v2` is `release/v1`.

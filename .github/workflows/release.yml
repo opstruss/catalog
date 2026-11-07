@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - v[0-9]+.[0-9]+.[0-9]+
+      - v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+
 
 permissions:
   contents: read
@@ -25,28 +26,68 @@ jobs:
           # The job pushes the major tag with the token of the workflow.
           persist-credentials: true
       # The notes are the CHANGELOG.md section of this version, written
-      # "## [1.2.3] - 2026-11-02" once [Unreleased] became the release.
+      # "## [1.2.3] - 2026-11-02" once [Unreleased] became the release. A
+      # release candidate, as v1.0.0-rc.1, gets the section [Unreleased]
+      # after an opening that says what it is and how to use it.
       - name: Extract release notes
         run: |
-          awk -v version="${GITHUB_REF_NAME#v}" '
-            $1 == "##" && $2 == "[" version "]" {
+          version="${GITHUB_REF_NAME#v}"
+          rc=0
+          case "$version" in *-*) rc=1 ;; esac
+          awk -v version="$version" -v rc="$rc" '
+            rc && $1 == "##" && $2 == "[Unreleased]" { found = 1; next }
+            !rc && $1 == "##" && $2 == "[" version "]" {
               if ($3 != "-" || $4 !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) exit 1
               found = 1; next
             }
             found && (/^## / || /^\[[^]]+\]: /) { exit }
             found { print }
-          ' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
-          grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md"
+          ' CHANGELOG.md > "$RUNNER_TEMP/section.md"
+          grep -q '[^[:space:]]' "$RUNNER_TEMP/section.md"
+          if [ "$rc" = 1 ]; then
+            final="${version%%-*}"
+            cat > "$RUNNER_TEMP/notes.md" <<EOF
+          The catalog $version is a release candidate of $final, published to
+          be tried before the release. Until $final, the packages that it adds
+          or changes, their inputs, and their outputs may still change.
+
+              uses:
+                ops: github.com/opstruss/catalog@v$version
+
+          Report what you find at https://github.com/opstruss/catalog/issues.
+          EOF
+          fi
+          cat "$RUNNER_TEMP/section.md" >> "$RUNNER_TEMP/notes.md"
+      # A release candidate is a pre-release, which GitHub never marks as
+      # the latest release.
       - name: Publish the release
-        run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"
+        run: |
+          case "$GITHUB_REF_NAME" in
+          *-*) set -- --prerelease ;;
+          esac
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md" "$@"
         env:
           GH_TOKEN: ${{ github.token }}
       # vX names the latest release of its major version, so a fix to an
-      # older release leaves it where it is.
+      # older release leaves it where it is. Before the first release of a
+      # major version, it names the latest release candidate, since the
+      # docs and opstruss init write @v1 then. git sorts a release
+      # candidate after its release, so the latest release is looked for
+      # among the releases alone.
       - name: Move the major tag
         run: |
           major=${GITHUB_REF_NAME%%.*}
-          latest=$(git tag --list "$major.*.*" --sort=-v:refname | head -n 1)
+          release=$(git tag --list "$major.*.*" --sort=-v:refname | awk '!/-/ && !found { print; found = 1 }')
+          case "$GITHUB_REF_NAME" in
+          *-*)
+            if [ -n "$release" ]; then
+              echo "$major names the release $release, so it stays"
+              exit 0
+            fi
+            latest=$(git tag --list "$major.*.*-*" --sort=-v:refname | head -n 1)
+            ;;
+          *) latest=$release ;;
+          esac
           if [ "$latest" != "$GITHUB_REF_NAME" ]; then
             echo "$latest is later than $GITHUB_REF_NAME, so $major stays"
             exit 0

@@ -5,7 +5,9 @@ can notice is written down here, newest first.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 A release tag `vX.Y.Z` covers the whole catalog and `vX` moves to the
-latest release of each major version; a tag `<name>-vX.Y.Z` only names the
+latest release of each major version; a release candidate `vX.Y.Z-rc.N`
+is a pre-release of `[Unreleased]`, which `vX` names only before the
+first release of its major version; a tag `<name>-vX.Y.Z` only names the
 release assets of a compiled plugin. A release that needs a later OpsTruss
 or a later version of a tool says so first, under Upgrade notes.
 

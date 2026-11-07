@@ -55,7 +55,9 @@ uses:
 
 `v1` is the major version of this catalog, not of OpsTruss. Each release
 has a tag `v1.Y.Z`, which never moves, and `v1` moves to the latest of
-them. `opstruss.lock` keeps the commit that a project got until
+them. A release candidate, as `v1.0.0-rc.1`, is a pre-release whose new
+packages, inputs, and outputs may still change; until `v1.0.0`, `v1`
+names the latest one. `opstruss.lock` keeps the commit that a project got until
 `opstruss uses update` moves it; a ref such as `@v1.2.0` names one
 release, which an update does not move.
 
