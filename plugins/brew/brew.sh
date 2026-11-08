@@ -112,9 +112,9 @@ record() {
 		def versions($kind; $want): $want | map(short | {(.): ($h[$kind][.] | if . == "" then null else . end)}) | add // {};
 		{installed: {packages: mine("package"; $o.packages; $plan[0].install.packages),
 			casks: mine("cask"; $o.casks; $plan[0].install.casks)},
-			versions: versions("package"; .packages), casks: versions("cask"; .casks)}' \
+			versions: versions("package"; .packages), cask_versions: versions("cask"; .casks)}' \
 		"$OPSTRUSS_INPUTS" >"$tmp/outputs.json"
-	for name in installed versions casks; do
+	for name in installed versions cask_versions; do
 		value=$(jq -c --arg name "$name" '.[$name]' "$tmp/outputs.json")
 		output "$name" "$value"
 	done
@@ -124,7 +124,7 @@ cmd_plan() {
 	setup
 	jq --arg digest "$digest" '{
 		changes,
-		outputs: (if (.changes | length) > 0 then ["installed", "versions", "casks"] else [] end),
+		outputs: (if (.changes | length) > 0 then ["installed", "versions", "cask_versions"] else [] end),
 		digest: $digest,
 		exact: false
 	}' "$tmp/plan.json" >"$OPSTRUSS_PLAN"

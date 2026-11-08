@@ -36,7 +36,7 @@ outputs:
   versions:
     type: object
     description: The version of each formula of the unit that Homebrew has, null for one that it lacks
-  casks:
+  cask_versions:
     type: object
     description: The version of each cask of the unit that Homebrew has, null for one that it lacks
 tasks:

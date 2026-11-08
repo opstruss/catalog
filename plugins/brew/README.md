@@ -68,7 +68,7 @@ units:
 |---|---|---|
 | `installed` | object | What the unit installed itself, as the lists `packages` and `casks`; `destroy` uninstalls only these |
 | `versions` | object | The version of each formula of the unit that Homebrew has, `null` for one that it lacks |
-| `casks` | object | The version of each cask of the unit that Homebrew has, `null` for one that it lacks |
+| `cask_versions` | object | The version of each cask of the unit that Homebrew has, `null` for one that it lacks |
 
 ## Tasks
 

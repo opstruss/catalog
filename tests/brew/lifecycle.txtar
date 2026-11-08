@@ -62,7 +62,7 @@ units:
 outputs:
   installed: ${{ units.tools.outputs.installed }}
   versions: ${{ units.tools.outputs.versions }}
-  casks: ${{ units.tools.outputs.casks }}
+  cask_versions: ${{ units.tools.outputs.cask_versions }}
 -- dropped.yaml --
 name: app
 uses:
@@ -74,7 +74,7 @@ units:
       packages: [figlet]
       casks: [firefox]
 -- outputs.txt --
-casks: {"firefox":"1.0"}
+cask_versions: {"firefox":"1.0"}
 installed: {"casks":["firefox"],"packages":["hello"]}
 versions: {"figlet":"2.2.5","hello":"1.0"}
 -- bin/brew --
