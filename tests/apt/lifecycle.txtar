@@ -50,7 +50,7 @@ grep -count=3 ' __sudo$' sudo.log
 
 cp unasked.yaml opstruss.yaml
 ! exec opstruss validate
-stderr 'unit tools: plugin apt runs destroy and up with sudo; allow it with sudo: true on the unit'
+stderr 'units.tools: plugin apt runs destroy and up with sudo; allow it with sudo: true on the unit'
 
 -- opstruss.yaml --
 name: app

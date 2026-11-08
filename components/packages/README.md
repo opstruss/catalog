@@ -29,6 +29,13 @@ as the operator, since Homebrew refuses root. The component asks for it on
 every machine, macOS too, since `validate` reads the files, not the
 machine.
 
+## Needs
+
+`jq` 1.6 or later and the package manager of the machine in `PATH`, and
+`git` to fetch the catalog. A fresh Linux has no `jq`: `sudo apt-get
+install jq` or `sudo dnf install jq`. macOS 15 and later has it in
+`/usr/bin`; before that, `brew install jq`.
+
 ## Inputs
 
 | Name | Type | Default | Description |
@@ -42,8 +49,9 @@ machine.
 | `args` | object | `{}` | The input `args` of the plugin of each package manager, by its name |
 
 The plugins take the names as they read them: brew from its Cellar and
-Caskroom, apt from dpkg, and dnf from rpm. A name that the package manager
-does not take stops `plan` of its unit.
+Caskroom, apt from dpkg, and dnf from rpm. A name that is not a name to
+the package manager, as `foo=1.2`, stops `plan` of its unit; a name that
+its repositories lack fails at `up`, and the unit owns nothing of it.
 
 `args` reaches the plugin of the package manager by its name:
 
@@ -54,6 +62,10 @@ does not take stops `plan` of its unit.
         apt: {install: [--no-install-recommends]}
         dnf: {install: [--setopt=install_weak_deps=False]}
 ```
+
+`opstruss plan` checks the keys of `args` through the plugin of the
+package manager; `validate` checks them only in a unit that uses the
+plugin itself.
 
 ## The package manager
 
@@ -79,5 +91,6 @@ machine; set manager to brew, apt, or dnf`.
 The record of a unit names what it installed on the machine that ran it,
 and the component picks its unit by that machine. Run from a machine with
 another package manager, the same stack plans to destroy the unit of the
-first, as it does when `manager` changes. A stack per machine, as `laptop`
-and `server`, keeps their packages apart.
+first, as it does when `manager` changes; `up` does so only once every
+unit of the stack can be planned. A stack per machine, as `laptop` and
+`server`, keeps their packages apart.
