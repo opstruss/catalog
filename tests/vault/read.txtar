@@ -1,0 +1,103 @@
+# The task read as a source of secrets: one field of a secret, as text,
+# or the whole secret, as an object, from a key/value engine of version 2,
+# also at an older version, and of version 1. The values reach a unit and
+# stay out of the log and the records. A secret or a field that does not
+# exist fails the unit that reads it, with the fields that the secret has
+# and none of their values, and a unit that reads no secret still runs.
+# Without a token, vault fails as it says. A dev server of Vault serves
+# the secrets, on a port of loopback.
+
+env HOME=$WORK/home
+env VAULT_ADDR=http://127.0.0.1:18273
+env VAULT_TOKEN=root
+symlink catalog -> $CATALOG
+
+exec vault server -dev -dev-root-token-id=root -dev-listen-address=127.0.0.1:18273 -dev-no-store-token &
+exec sh -c 'i=0; until vault status >/dev/null 2>&1; do i=$((i+1)); [ $i -lt 100 ] || exit 1; sleep 0.1; done'
+exec vault kv put secret/app/db password=pw-one user=app
+exec vault kv put secret/app/db password=pw-two user=app
+exec vault secrets enable -path=kv1 -version=1 kv
+exec vault kv put kv1/app/db password=pw-legacy
+
+exec opstruss up --yes app
+stdout '^default/app \| password=\*\*\* user=app$'
+stdout '^default/app \| the password, the old one, and the legacy one are right$'
+! exec grep -rq 'pw-' .opstruss/runs .opstruss/state
+
+# A secret and a field that do not exist.
+cp broken.yaml opstruss.yaml
+! exec opstruss up --yes
+stdout 'No value found at secret/data/app/none'
+stdout 'the secret secret/app/db has no field passwd; it has: password, user$'
+! stdout 'pw-'
+stdout '^default/plain: up: done$'
+
+# No token.
+cp opstruss.yaml.saved opstruss.yaml
+env VAULT_TOKEN=
+! exec opstruss up --yes app
+stdout 'permission denied|missing client token'
+
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+  vault:
+    source: ops.vault
+    pass: [VAULT_ADDR, VAULT_TOKEN]
+secrets:
+  password:
+    vault.read: {path: secret/app/db, field: password}
+  db:
+    vault.read: {path: secret/app/db}
+  old:
+    vault.read: {path: secret/app/db, field: password, version: 1}
+  legacy:
+    vault.read: {path: kv1/app/db, field: password}
+units:
+  app:
+    run: |
+      echo "password=$PASSWORD user=$USER_NAME"
+      [ "$PASSWORD" = pw-two ] && [ "$OLD" = pw-one ] && [ "$LEGACY" = pw-legacy ] &&
+        echo "the password, the old one, and the legacy one are right"
+    env:
+      PASSWORD: ${{ secrets.password }}
+      USER_NAME: ${{ secrets.db.user }}
+      OLD: ${{ secrets.old }}
+      LEGACY: ${{ secrets.legacy }}
+-- opstruss.yaml.saved --
+name: app
+uses:
+  ops: ./catalog
+  vault:
+    source: ops.vault
+    pass: [VAULT_ADDR, VAULT_TOKEN]
+secrets:
+  password:
+    vault.read: {path: secret/app/db, field: password}
+units:
+  app:
+    run: echo "password=$PASSWORD"
+    env:
+      PASSWORD: ${{ secrets.password }}
+-- broken.yaml --
+name: app
+uses:
+  ops: ./catalog
+  vault:
+    source: ops.vault
+    pass: [VAULT_ADDR, VAULT_TOKEN]
+secrets:
+  none:
+    vault.read: {path: secret/app/none}
+  typo:
+    vault.read: {path: secret/app/db, field: passwd}
+units:
+  none:
+    run: echo "$NONE"
+    env: {NONE: "${{ secrets.none.password }}"}
+  typo:
+    run: echo "$TYPO"
+    env: {TYPO: "${{ secrets.typo }}"}
+  plain:
+    run: echo plain

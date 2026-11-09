@@ -1,0 +1,32 @@
+# A Vault older than the plugin takes stops the task with the version
+# that it needs, before vault reads anything.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 0755 bin/vault
+symlink catalog -> $CATALOG
+
+! exec opstruss up --yes
+stdout '^vault.read \| vault needs Vault 1.10 or later; this is v1.9.0$'
+
+-- bin/vault --
+#!/bin/sh
+if [ "$*" = version ]; then
+	echo 'Vault v1.9.0 (bc5c8b2d07e3cbcbbba8d4f4e6ff1d1f6aa1fcd0)'
+	exit 0
+fi
+echo "unexpected: vault $*" >&2
+exit 1
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+  vault: ops.vault
+secrets:
+  password:
+    vault.read: {path: secret/app/db, field: password}
+units:
+  app:
+    run: echo "$PASSWORD"
+    env:
+      PASSWORD: ${{ secrets.password }}

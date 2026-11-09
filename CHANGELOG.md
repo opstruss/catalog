@@ -50,6 +50,10 @@ or a later version of a tool says so first, under Upgrade notes.
   the credentials of the backend reach restic as variables, never as
   arguments. A backup that could not read a file gives its snapshot and
   fails.
+- `vault` plugin: the task `read`, a source of `secrets:` that gives one
+  field of a secret of the key/value engine of Vault, of version 1 or 2,
+  or the whole secret as an object. The address and the token come from
+  the variables that `pass:` lets through, or from `vault login`.
 - `packages` component: one list of packages for the package manager of
   the machine, brew on macOS, apt or dnf by `/etc/os-release` on Linux,
   or the input `manager`, with lists and `args` for each one.
@@ -59,5 +63,6 @@ or a later version of a tool says so first, under Upgrade notes.
   compose` draws it, and a line per change in CI.
 - Each package names the oldest OpsTruss that it takes in its manifest,
   `opstruss: "1.0"`, and each plugin the oldest version of its tool:
-  OpenTofu 1.6, Terraform 1.5, Docker Compose 2.23, restic 0.17.1, and jq
-  1.6. An older one stops the plugin with the version that it needs.
+  OpenTofu 1.6, Terraform 1.5, Docker Compose 2.23, restic 0.17.1, Vault
+  1.10, and jq 1.6. An older one stops the plugin with the version that it
+  needs.

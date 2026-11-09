@@ -1,0 +1,25 @@
+name: vault
+description: Secrets from the key/value secrets engine of Vault
+opstruss: "1.0"
+requires: [vault, jq]
+env: ['VAULT_*']
+tasks:
+  read:
+    description: Read a secret, or one field of it, from a key/value secrets engine
+    inputs:
+      path:
+        type: string
+        description: The secret, as <mount>/<path>, the way vault kv get takes it
+        required: true
+      field:
+        type: string
+        description: One field of the secret; the whole secret, as an object, without one
+      version:
+        type: integer
+        minimum: 1
+        description: The version of the secret, in a key/value engine of version 2; the latest without one
+    outputs:
+      value:
+        description: The field as Vault holds it, or the whole secret as an object
+        sensitive: true
+    run: [./vault.sh, read]
