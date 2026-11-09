@@ -60,6 +60,10 @@ or a later version of a tool says so first, under Upgrade notes.
   `vars` reach the playbook through a file, and the playbook runs in its
   own directory, with its `ansible.cfg` and the callbacks that it
   enables.
+- `mise` plugin: the tools of a mise configuration as a unit, whose plan
+  lists each tool that the machine lacks, also one removed by hand. The
+  plugin never trusts a configuration: one that mise does not trust stops
+  the plan.
 - `packages` component: one list of packages for the package manager of
   the machine, brew on macOS, apt or dnf by `/etc/os-release` on Linux,
   or the input `manager`, with lists and `args` for each one.
@@ -70,5 +74,5 @@ or a later version of a tool says so first, under Upgrade notes.
 - Each package names the oldest OpsTruss that it takes in its manifest,
   `opstruss: "1.0"`, and each plugin the oldest version of its tool:
   OpenTofu 1.6, Terraform 1.5, Docker Compose 2.23, restic 0.17.1, Vault
-  1.10, ansible-core 2.16, and jq 1.6. An older one stops the plugin with
-  the version that it needs.
+  1.10, ansible-core 2.16, mise 2025.11, and jq 1.6. An older one stops the
+  plugin with the version that it needs.

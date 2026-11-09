@@ -1,0 +1,28 @@
+name: mise
+description: The tools of mise configurations
+opstruss: "1.0"
+requires: [mise, jq]
+env: ['MISE_*']
+inputs:
+  dir:
+    type: string
+    description: The directory whose mise configuration names the tools, relative to the file of the unit, or under ~; mise reads the global configuration too
+    default: .
+  args:
+    type: object
+    description: Arguments that mise gets after those of the plugin, by command
+    default: {}
+    properties:
+      install:
+        type: array
+        items: {type: string}
+outputs:
+  tools:
+    type: object
+    description: The version of each tool of the configuration that mise uses, by name; versions of one tool are separated by spaces
+tasks:
+  plan:
+    run: [./mise.sh, plan]
+  up:
+    run: [./mise.sh, up]
+    stop: {grace: 1m}

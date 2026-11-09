@@ -16,6 +16,7 @@ Official plugins and components for
 | [restic](plugins/restic) | restic repositories, with tasks to back up, forget, check, and restore | `restic` 0.17.1, `jq` 1.6 |
 | [vault](plugins/vault) | none: its task `read` gives secrets of Vault | `vault` 1.10, `jq` 1.6 |
 | [ansible](plugins/ansible) | Ansible playbooks | `ansible-playbook` and `ansible-config` of ansible-core 2.16, `jq` 1.6 |
+| [mise](plugins/mise) | The tools of mise configurations | `mise` 2025.11, `jq` 1.6 |
 
 ## Components
 

@@ -1,0 +1,29 @@
+# A mise older than the plugin takes stops each program of the plugin
+# with the version that it needs, before mise reads the configuration.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 0755 bin/mise
+symlink catalog -> $CATALOG
+
+! exec opstruss plan
+stdout '^default/tools \| mise needs mise 2025.11 or later; this is 2025.6.0$'
+
+-- bin/mise --
+#!/bin/sh
+if [ "$*" = --version ]; then
+	echo '2025.6.0 linux-x64 (2025-06-02)'
+	exit 0
+fi
+echo "unexpected: mise $*" >&2
+exit 1
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+units:
+  tools:
+    uses: ops.mise
+-- mise.toml --
+[tools]
+jq = "1.7.1"

@@ -1,0 +1,76 @@
+# The tools of a mise configuration as a unit. plan lists each tool that
+# mise lacks, up installs it and gives the version of each tool, and a
+# plan after up changes nothing; a tool removed by hand is a create
+# again. The unit has no destroy: destroy forgets it and leaves the tools.
+# A configuration that is not trusted stops the plan with what mise says,
+# and the plugin does not trust it. jq comes from GitHub.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+# The operator trusts the configuration, as some releases of mise ask
+# also of one with only tools.
+exec mise trust tools/mise.toml
+
+exec opstruss plan tools
+stdout '^default/tools: will run: new; plan: create tool.jq@1.7.1$'
+
+exec opstruss up --yes tools
+stdout '^default/tools: up: done$'
+exists home/.local/share/mise/installs/jq/1.7.1
+exec opstruss outputs --json
+stdout '"jq": "1.7.1"'
+
+exec opstruss plan tools
+stdout '^default/tools: unchanged$'
+
+# A tool removed by hand.
+rm home/.local/share/mise/installs/jq
+exec opstruss plan tools
+stdout '^default/tools: will run: plan: create tool.jq@1.7.1$'
+exec opstruss up --yes tools
+exists home/.local/share/mise/installs/jq/1.7.1
+
+exec opstruss destroy --yes tools
+stdout '^default/tools: forgotten without a destroy program$'
+exists home/.local/share/mise/installs/jq/1.7.1
+
+# A directory under ~, whose tools mise has already.
+exec mise trust home/cfg/mise.toml
+exec opstruss plan home
+stdout '^default/home: will run: new$'
+
+# A configuration with env, which mise runs only once it is trusted, in a
+# directory that mise has not read yet.
+! exec opstruss plan other
+stdout 'other/mise.toml are not trusted'
+! exec sh -c 'ls home/.local/state/mise/trusted-configs | grep -q other'
+
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+outputs:
+  tools: ${{ units.tools.outputs.tools }}
+units:
+  tools:
+    uses: ops.mise
+    with: {dir: ./tools}
+  other:
+    uses: ops.mise
+    with: {dir: ./other}
+  home:
+    uses: ops.mise
+    with: {dir: ~/cfg}
+-- tools/mise.toml --
+[tools]
+jq = "1.7.1"
+-- home/cfg/mise.toml --
+[tools]
+jq = "1.7.1"
+-- other/mise.toml --
+[tools]
+jq = "1.7.1"
+
+[env]
+GREETING = "hello"
