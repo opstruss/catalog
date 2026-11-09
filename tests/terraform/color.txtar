@@ -1,0 +1,28 @@
+# terraform prints in color unless OpsTruss sets NO_COLOR: without a
+# terminal the plan of terraform is plain, and where OpsTruss shows color,
+# as FORCE_COLOR asks of --json, it keeps the colors of terraform.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+exec opstruss plan --json
+stdout '"message":"Terraform will perform the following actions:"'
+! stdout '\\u001b\['
+
+env FORCE_COLOR=1
+exec opstruss plan --json
+stdout '"task":"plan","stream":"stdout","message":"[^"]*\\u001b\['
+
+-- opstruss.yaml --
+name: app
+uses:
+  terraform: ./catalog/plugins/terraform
+units:
+  infra:
+    uses: terraform
+    with:
+      dir: ./infra
+-- infra/main.tf --
+resource "terraform_data" "this" {
+  input = "one"
+}

@@ -1,0 +1,26 @@
+# A Terraform older than the plugin takes stops each program of the plugin
+# with the version that it needs, before terraform runs anything.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 755 bin/terraform
+symlink catalog -> $CATALOG
+
+! exec opstruss plan
+stdout '^default/net \| terraform needs Terraform 1.5 or later; this is 1.4.7$'
+
+-- bin/terraform --
+#!/bin/sh
+if [ "$*" = "version -json" ]; then
+	echo '{"terraform_version": "1.4.7", "platform": "linux_amd64"}'
+	exit 0
+fi
+echo "unexpected: terraform $*" >&2
+exit 1
+-- opstruss.yaml --
+name: app
+uses:
+  terraform: ./catalog/plugins/terraform
+units:
+  net:
+    uses: terraform

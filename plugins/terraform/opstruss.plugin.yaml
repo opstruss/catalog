@@ -1,0 +1,52 @@
+name: terraform
+description: Terraform modules
+opstruss: "1.0"
+requires: [terraform, jq]
+env: ['*']
+state: tool
+inputs:
+  dir:
+    type: string
+    description: The directory of the root module, relative to the file of the unit
+    default: .
+  vars:
+    type: object
+    description: Values of the variables of the module, which win over those of var_files
+    default: {}
+  var_files:
+    type: array
+    items: {type: string}
+    description: Files of values of the variables, relative to the file of the unit; a later file wins
+    default: []
+  parallelism:
+    type: integer
+    minimum: 1
+    description: How many operations terraform runs at once in plan, apply, and destroy
+  args:
+    type: object
+    description: Arguments that terraform gets after those of the plugin, by command
+    default: {}
+    properties:
+      init:
+        type: array
+        items: {type: string}
+      plan:
+        type: array
+        items: {type: string}
+      apply:
+        type: array
+        items: {type: string}
+outputs: tool
+tasks:
+  plan:
+    run: [./terraform.sh, plan]
+  up:
+    run: [./terraform.sh, up]
+    stop: {signal: SIGINT, grace: 10m}
+  destroy:
+    run: [./terraform.sh, destroy]
+    stop: {signal: SIGINT, grace: 10m}
+  status:
+    run: [./terraform.sh, status]
+  exec:
+    run: [./terraform.sh, exec]

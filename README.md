@@ -8,6 +8,7 @@ Official plugins and components for
 | Plugin | Units of | Needs in `PATH`, at least |
 |---|---|---|
 | [tofu](plugins/tofu) | OpenTofu root modules | `tofu` 1.6, `jq` 1.6 |
+| [terraform](plugins/terraform) | Terraform root modules | `terraform` 1.5, `jq` 1.6 |
 | [compose](plugins/compose) | Docker Compose projects | `docker` with Compose 2.23, `jq` 1.6 |
 | [brew](plugins/brew) | Homebrew formulae and casks | `brew`, `jq` 1.6 |
 | [apt](plugins/apt) | Debian and Ubuntu packages, as root | `apt-get`, `dpkg-query`, `jq` 1.6, `sudo` |

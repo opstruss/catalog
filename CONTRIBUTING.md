@@ -228,6 +228,9 @@ Before a pull request, the tests show that:
 A change that a project using a package can notice goes in
 [`CHANGELOG.md`](CHANGELOG.md), under `[Unreleased]`, in the same commit.
 
+The scripts of `tofu` and `terraform` differ only where the tools do, as
+in their versions: a change to one is checked in the other.
+
 A release of `v1` may need more than the one before it, since what it
 needs stops a project with what to upgrade before anything runs:
 

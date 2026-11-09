@@ -23,6 +23,8 @@ or a later version of a tool says so first, under Upgrade notes.
   `args` adds arguments to `init`, `plan`, and `apply`. It asks for
   every variable, so `pass:` alone says which reach the module and its
   providers.
+- `terraform` plugin: Terraform root modules as units, with the inputs,
+  outputs, tasks, state, and lock file of the `tofu` plugin.
 - `compose` plugin: Docker Compose projects as units, named after their
   state key, or after the input `project`, which takes over a project that
   runs already, with `logs` and `config` tasks and an `exec` hook that sets
@@ -50,5 +52,5 @@ or a later version of a tool says so first, under Upgrade notes.
   compose` draws it, and a line per change in CI.
 - Each package names the oldest OpsTruss that it takes in its manifest,
   `opstruss: "1.0"`, and each plugin the oldest version of its tool:
-  OpenTofu 1.6, Docker Compose 2.23, and jq 1.6. An older one stops the
-  plugin with the version that it needs.
+  OpenTofu 1.6, Terraform 1.5, Docker Compose 2.23, and jq 1.6. An older one
+  stops the plugin with the version that it needs.
