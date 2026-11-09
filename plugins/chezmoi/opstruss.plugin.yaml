@@ -1,0 +1,37 @@
+name: chezmoi
+description: Dotfiles that chezmoi applies from a repository
+opstruss: "1.0"
+requires: [chezmoi, git, jq]
+inputs:
+  repo:
+    type: string
+    description: The repository of the dotfiles, as chezmoi init takes it, such as https://github.com/ana/dotfiles.git or ana
+    required: true
+  prompts:
+    type: object
+    description: Answers to the prompts of the template of the configuration, by the text of each prompt; a string, a boolean, or an integer
+    default: {}
+  args:
+    type: object
+    description: Arguments that chezmoi gets after those of the plugin, by command
+    default: {}
+    properties:
+      init:
+        type: array
+        items: {type: string}
+      update:
+        type: array
+        items: {type: string}
+outputs:
+  commit:
+    type: string
+    description: The commit of the source that chezmoi applied, short
+  files:
+    type: array
+    description: The files that chezmoi manages, relative to the home directory
+tasks:
+  plan:
+    run: [./chezmoi.sh, plan]
+  up:
+    run: [./chezmoi.sh, up]
+    stop: {grace: 1m}

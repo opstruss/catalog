@@ -1,0 +1,27 @@
+# A chezmoi older than the plugin takes stops each program of the plugin
+# with the version that it needs, before chezmoi reads anything.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 0755 bin/chezmoi
+symlink catalog -> $CATALOG
+
+! exec opstruss plan
+stdout '^default/dotfiles \| chezmoi needs chezmoi 2.40 or later; this is 2.39.1$'
+
+-- bin/chezmoi --
+#!/bin/sh
+if [ "$*" = --version ]; then
+	echo 'chezmoi version v2.39.1, commit 0123456, built at 2023-09-01T00:00:00Z, built by goreleaser'
+	exit 0
+fi
+echo "unexpected: chezmoi $*" >&2
+exit 1
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+units:
+  dotfiles:
+    uses: ops.chezmoi
+    with: {repo: ana}

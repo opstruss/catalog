@@ -1,5 +1,6 @@
 [tools]
 actionlint = "1.7.12"
+chezmoi = "2.74.0"
 go = "1.27.2"
 jq = "1.8.2"
 opentofu = "1.13.9"

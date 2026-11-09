@@ -1,0 +1,103 @@
+# Dotfiles of chezmoi as a unit. The first plan creates them, and up runs
+# chezmoi init with the answers of prompts, also those with a comma, a
+# quote, or an =, then gives the commit and the files. A plan after up
+# changes nothing; a file edited by hand and a new commit in the
+# repository are updates, which up applies over the edit. The unit has no
+# destroy: destroy forgets it and leaves the source and the files. A
+# prompt without an answer fails up at once, with the message of chezmoi.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+exec git -C dots init -q -b main
+exec git -C dots add -A
+exec git -C dots -c user.email=ana@example.com -c user.name=ana commit -qm one
+
+exec opstruss plan
+stdout '^default/dotfiles: will run: new; plan: create dotfiles$'
+exec opstruss up --yes
+stdout '^default/dotfiles: up: done$'
+exec cat home/.hello
+stdout '^hello ana@example.com; at work: true; editors: 2; x, y; k=v, "q" z$'
+exec opstruss outputs --json
+stdout '"commit": \{\s+"value": "[0-9a-f]{7,}"'
+stdout '"\.hello"'
+
+exec opstruss plan
+stdout '^default/dotfiles: unchanged$'
+
+# A file edited by hand.
+cp edited.txt home/.hello
+exec opstruss plan
+stdout '^default/dotfiles: will run: plan: update file.\.hello$'
+
+# A new commit in the repository.
+cp bye.txt dots/dot_bye
+exec git -C dots add -A
+exec git -C dots -c user.email=ana@example.com -c user.name=ana commit -qm two
+exec opstruss plan
+stdout '^default/dotfiles \| the source is 1 commits behind its repository$'
+stdout '^default/dotfiles: will run: plan: update source, update file.\.hello$'
+exec opstruss up --yes
+exec cat home/.hello
+stdout '^hello ana@example.com'
+exists home/.bye
+exec opstruss plan
+stdout '^default/dotfiles: unchanged$'
+
+exec opstruss destroy --yes
+stdout '^default/dotfiles: forgotten without a destroy program$'
+exists home/.hello
+exists home/.local/share/chezmoi/.git
+
+# A prompt without an answer, on a machine that chezmoi has not set up.
+env HOME=$WORK/other
+cp unanswered.yaml opstruss.yaml
+! exec opstruss up --yes
+stdout 'error calling promptStringOnce: EOF'
+
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+outputs:
+  commit: ${{ units.dotfiles.outputs.commit }}
+  files: ${{ units.dotfiles.outputs.files }}
+units:
+  dotfiles:
+    uses: ops.chezmoi
+    with:
+      repo: file://${{ opstruss.dir }}/dots
+      prompts:
+        Email: ana@example.com
+        Work machine: true
+        Editors: 2
+        With, a comma: x, y
+        Token: k=v, "q" z
+-- unanswered.yaml --
+name: app
+uses:
+  ops: ./catalog
+units:
+  dotfiles:
+    uses: ops.chezmoi
+    with:
+      repo: file://${{ opstruss.dir }}/dots
+-- dots/.chezmoi.toml.tmpl --
+{{ $email := promptStringOnce . "email" "Email" -}}
+{{ $work := promptBoolOnce . "work" "Work machine" -}}
+{{ $editors := promptIntOnce . "editors" "Editors" -}}
+{{ $comma := promptStringOnce . "comma" "With, a comma" -}}
+{{ $token := promptStringOnce . "token" "Token" -}}
+[data]
+  email = {{ $email | quote }}
+  work = {{ $work }}
+  editors = {{ $editors }}
+  comma = {{ $comma | quote }}
+  token = {{ $token | quote }}
+-- dots/dot_hello.tmpl --
+hello {{ .email }}; at work: {{ .work }}; editors: {{ .editors }}; {{ .comma }}; {{ .token }}
+-- edited.txt --
+edited by hand
+-- bye.txt --
+bye

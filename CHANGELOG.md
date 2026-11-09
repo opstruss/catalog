@@ -64,6 +64,11 @@ or a later version of a tool says so first, under Upgrade notes.
   lists each tool that the machine lacks, also one removed by hand. The
   plugin never trusts a configuration: one that mise does not trust stops
   the plan.
+- `chezmoi` plugin: dotfiles that chezmoi applies from a repository as a
+  unit, whose plan fetches the repository and lists a new commit and each
+  file edited by hand, which `up` applies over. `prompts` answers the
+  prompts of `chezmoi init`, which runs without a keyboard, so one
+  without an answer fails at once.
 - `packages` component: one list of packages for the package manager of
   the machine, brew on macOS, apt or dnf by `/etc/os-release` on Linux,
   or the input `manager`, with lists and `args` for each one.
@@ -74,5 +79,5 @@ or a later version of a tool says so first, under Upgrade notes.
 - Each package names the oldest OpsTruss that it takes in its manifest,
   `opstruss: "1.0"`, and each plugin the oldest version of its tool:
   OpenTofu 1.6, Terraform 1.5, Docker Compose 2.23, restic 0.17.1, Vault
-  1.10, ansible-core 2.16, mise 2025.11, and jq 1.6. An older one stops the
-  plugin with the version that it needs.
+  1.10, ansible-core 2.16, mise 2025.11, chezmoi 2.40, and jq 1.6. An older
+  one stops the plugin with the version that it needs.
