@@ -1,0 +1,113 @@
+# The inputs of a unit. vars reach the playbook from a file, as they are,
+# never as arguments, which bin/ansible-playbook writes down before it
+# runs ansible-playbook; two inventories and limit pick one host of them.
+# ansible-playbook runs in the directory of the playbook, so its
+# ansible.cfg applies, and a callback that it enables still runs beside
+# the one of the plugin. A task that fails fails the plan and up with what
+# Ansible says, and a key of args that the plugin does not take stops
+# validate.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 0755 bin/ansible-playbook
+mkdir home
+symlink catalog -> $CATALOG
+
+# ansible-playbook listens on a socket in TMPDIR, and macOS limits the path
+# of a socket to 104 bytes, less than TMPDIR of a script there.
+[darwin] env TMPDIR=/tmp
+
+exec opstruss up --yes two reader
+stdout '^default/two \| mine: the recap of h2$'
+exists out/h2.txt
+! exists out/h1.txt
+cmp got.txt want.txt
+! exists ansible/pwned
+! exists pwned
+! exec grep -q pwned home/argv.log
+
+! exec opstruss plan broken
+stdout '^default/broken \| fatal: \[h1\]: FAILED! => .*broken on purpose'
+! exec opstruss up --yes broken
+stdout 'broken on purpose'
+
+cp typo.yaml opstruss.yaml
+! exec opstruss validate
+stderr 'units.two.with.args: unknown key plan$'
+
+-- bin/ansible-playbook --
+#!/bin/sh
+printf '%s\n' "$*" >>"$HOME/argv.log"
+PATH=${PATH#*:} exec ansible-playbook "$@"
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+units:
+  two:
+    uses: ops.ansible
+    with:
+      playbook: ./ansible/site.yml
+      inventory: [./inv/a.ini, ./inv/b.ini]
+      limit: h2
+      vars:
+        greeting: "a  b; $(touch pwned) `touch pwned` 'q' \"q\""
+  reader:
+    run: printf '%s\n' "$GREETING" >got.txt
+    env:
+      GREETING: ${{ units.two.outputs.greeting }}
+  broken:
+    uses: ops.ansible
+    with:
+      playbook: ./ansible/broken.yml
+      inventory: [./inv/a.ini]
+-- typo.yaml --
+name: app
+uses:
+  ops: ./catalog
+units:
+  two:
+    uses: ops.ansible
+    with:
+      playbook: ./ansible/site.yml
+      args: {plan: [-v]}
+-- want.txt --
+a  b; $(touch pwned) `touch pwned` 'q' "q"
+-- inv/a.ini --
+h1 ansible_connection=local ansible_python_interpreter="{{ ansible_playbook_python }}"
+-- inv/b.ini --
+h2 ansible_connection=local ansible_python_interpreter="{{ ansible_playbook_python }}"
+-- ansible/ansible.cfg --
+[defaults]
+callback_plugins = ./cb
+callbacks_enabled = mine
+-- ansible/cb/mine.py --
+from ansible.plugins.callback import CallbackBase
+
+
+class CallbackModule(CallbackBase):
+    CALLBACK_VERSION = 2.0
+    CALLBACK_TYPE = "aggregate"
+    CALLBACK_NAME = "mine"
+    CALLBACK_NEEDS_ENABLED = True
+
+    def v2_playbook_on_stats(self, stats):
+        for host in sorted(stats.processed):
+            self._display.display("mine: the recap of " + host)
+-- ansible/site.yml --
+- hosts: all
+  gather_facts: false
+  tasks:
+    - ansible.builtin.copy:
+        content: "{{ greeting }}\n"
+        dest: "{{ playbook_dir }}/../out/{{ inventory_hostname }}.txt"
+    - ansible.builtin.set_stats:
+        data:
+          greeting: "{{ greeting }}"
+-- ansible/broken.yml --
+- hosts: all
+  gather_facts: false
+  tasks:
+    - ansible.builtin.fail:
+        msg: broken on purpose
+-- out/.keep --

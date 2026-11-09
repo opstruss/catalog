@@ -1,0 +1,39 @@
+name: ansible
+description: Ansible playbooks
+opstruss: "1.0"
+requires: [ansible-playbook, ansible-config, jq]
+inputs:
+  playbook:
+    type: string
+    description: The playbook, relative to the file of the unit; ansible-playbook runs in its directory
+    required: true
+  inventory:
+    type: array
+    items: {type: string}
+    description: Inventory files or directories, relative to the file of the unit; that of ansible.cfg without one
+    default: []
+  vars:
+    type: object
+    description: Extra variables of the playbook, which win over every other variable
+    default: {}
+  limit:
+    type: string
+    description: The hosts or groups to run on, as ansible-playbook --limit takes them
+  args:
+    type: object
+    description: Arguments that ansible-playbook gets after those of the plugin, by run
+    default: {}
+    properties:
+      playbook:
+        type: array
+        items: {type: string}
+      check:
+        type: array
+        items: {type: string}
+outputs: tool
+tasks:
+  plan:
+    run: [./ansible.sh, plan]
+  up:
+    run: [./ansible.sh, up]
+    stop: {grace: 2m}

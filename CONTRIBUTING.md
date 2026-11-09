@@ -180,6 +180,11 @@ A user shapes how the tool runs through the inputs of the unit:
    through a variable such as `FORCE_COLOR`, which its own programs would
    get too.
 
+The plugins are POSIX sh and jq. The one file in another language is
+[`plugins/ansible/opstruss_stats.py`](plugins/ansible/opstruss_stats.py),
+a callback that Ansible loads into its own Python, since only a callback
+sees the data of `set_stats`; `make lint` parses it.
+
 ## Errors
 
 The operator sees each line of stderr after the address of the unit,

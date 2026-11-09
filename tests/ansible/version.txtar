@@ -1,0 +1,32 @@
+# An ansible-core older than the plugin takes stops each program of the
+# plugin with the version that it needs, before ansible-playbook runs a
+# playbook.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 0755 bin/ansible-playbook
+symlink catalog -> $CATALOG
+
+! exec opstruss plan
+stdout '^default/hosts \| ansible needs ansible-core 2.16 or later; this is 2.15.13$'
+
+-- bin/ansible-playbook --
+#!/bin/sh
+if [ "$*" = --version ]; then
+	echo 'ansible-playbook [core 2.15.13]'
+	echo '  config file = None'
+	exit 0
+fi
+echo "unexpected: ansible-playbook $*" >&2
+exit 1
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+units:
+  hosts:
+    uses: ops.ansible
+    with: {playbook: ./site.yml}
+-- site.yml --
+- hosts: localhost
+  tasks: []

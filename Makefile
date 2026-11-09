@@ -31,9 +31,11 @@ TESTS := $(filter-out $(SKIPPED),$(TESTS))
 endif
 
 # check-extra-masked-returns finds a command whose failure a $(...) in an
-# argument hides, as cmd "$(sha256 file)".
+# argument hides, as cmd "$(sha256 file)". Python, of the callback of
+# ansible, is only parsed: py_compile would write bytecode into the plugin.
 lint:
 	$(SHELLCHECK) -o check-extra-masked-returns $(wildcard lib/*.sh plugins/*/*.sh examples/*/*.sh)
+	python3 -c 'import ast, sys; [ast.parse(open(f).read(), f) for f in sys.argv[1:]]' $(wildcard plugins/*/*.py)
 	$(ACTIONLINT)
 
 test:

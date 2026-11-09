@@ -15,6 +15,7 @@ Official plugins and components for
 | [dnf](plugins/dnf) | Fedora, RHEL, and other RPM packages, as root | `dnf`, `rpm`, `jq` 1.6, `sudo` |
 | [restic](plugins/restic) | restic repositories, with tasks to back up, forget, check, and restore | `restic` 0.17.1, `jq` 1.6 |
 | [vault](plugins/vault) | none: its task `read` gives secrets of Vault | `vault` 1.10, `jq` 1.6 |
+| [ansible](plugins/ansible) | Ansible playbooks | `ansible-playbook` and `ansible-config` of ansible-core 2.16, `jq` 1.6 |
 
 ## Components
 
@@ -103,9 +104,10 @@ and what they replace keeps working until then.
 - Relative paths in a package, as programs in `run:`, `include` files, and
   symlink targets, lead only into the package or `lib/`. A package may use
   another package through `uses:`.
-- Plugins are POSIX sh scripts with jq that load `lib/opstruss.sh`. A plugin
-  is compiled only when a script is not enough, and then ships release
-  binaries through `bin:`.
+- Plugins are POSIX sh scripts with jq that load `lib/opstruss.sh`; the
+  one file in another language is the callback that `ansible` gives to
+  Ansible, in its Python. A plugin is compiled only when a script is not
+  enough, and then ships release binaries through `bin:`.
 - `lib/` is not a public API: it changes with the plugins of the catalog.
 - The tests of a package live in `tests/<name>/`, outside the package, so
   a change to a test runs none of its units again.

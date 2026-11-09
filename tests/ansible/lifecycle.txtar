@@ -1,0 +1,110 @@
+# A playbook as a unit. plan runs it in check mode, and a host that it
+# would change is an update; up runs it, and the data of set_stats become
+# the outputs of the unit with their types, which another unit reads; a
+# key that set_stats does not give fails the plan of that unit. A plan
+# after up changes nothing, and a file changed by hand is an update again.
+# The unit has no destroy: destroy forgets it and leaves the host as it
+# is.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+
+# ansible-playbook listens on a socket in TMPDIR, and macOS limits the path
+# of a socket to 104 bytes, less than TMPDIR of a script there.
+[darwin] env TMPDIR=/tmp
+
+exec opstruss validate
+stdout '^valid$'
+
+exec opstruss plan hosts
+stdout '^default/hosts: will run: new; plan: update host.localhost$'
+! exists out/greeting.txt
+
+exec opstruss up --yes
+stdout '^default/hosts \| changed: \[localhost\]$'
+stdout '^default/hosts: up: done$'
+stdout '^default/reader \| file=.*/out/greeting.txt second=443 count=3 a=1$'
+exec cat out/greeting.txt
+stdout '^hello$'
+
+exec opstruss plan
+stdout '^default/hosts: unchanged$'
+stdout '^default/reader: unchanged$'
+
+cp changed.txt out/greeting.txt
+exec opstruss plan hosts
+stdout '^default/hosts: will run: plan: update host.localhost$'
+stdout '^default/hosts \| \+hello$'
+exec opstruss up --yes hosts
+exec cat out/greeting.txt
+stdout '^hello$'
+
+# A key that set_stats does not give.
+cp missing.yaml opstruss.yaml
+! exec opstruss plan
+stdout '^default/reader: error: env.PORT: .*no such key: port; units.hosts.outputs has count, file, map, ports$'
+
+cp opstruss.yaml.saved opstruss.yaml
+exec opstruss destroy --yes hosts
+stdout '^default/hosts: forgotten without a destroy program$'
+exists out/greeting.txt
+
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+units:
+  hosts:
+    uses: ops.ansible
+    with:
+      playbook: ./ansible/site.yml
+      inventory: [./ansible/hosts.ini]
+  reader:
+    run: echo "file=$FILE second=$SECOND count=$COUNT a=$A"
+    env:
+      FILE: ${{ units.hosts.outputs.file }}
+      SECOND: ${{ units.hosts.outputs.ports[1] }}
+      COUNT: ${{ units.hosts.outputs.count + 0 }}
+      A: ${{ units.hosts.outputs.map.a }}
+-- opstruss.yaml.saved --
+name: app
+uses:
+  ops: ./catalog
+units:
+  hosts:
+    uses: ops.ansible
+    with:
+      playbook: ./ansible/site.yml
+      inventory: [./ansible/hosts.ini]
+-- missing.yaml --
+name: app
+uses:
+  ops: ./catalog
+units:
+  hosts:
+    uses: ops.ansible
+    with:
+      playbook: ./ansible/site.yml
+      inventory: [./ansible/hosts.ini]
+  reader:
+    run: echo "$PORT"
+    env:
+      PORT: ${{ units.hosts.outputs.port }}
+-- ansible/hosts.ini --
+localhost ansible_connection=local ansible_python_interpreter="{{ ansible_playbook_python }}"
+-- ansible/site.yml --
+- hosts: localhost
+  gather_facts: false
+  tasks:
+    - ansible.builtin.copy:
+        content: "hello\n"
+        dest: "{{ playbook_dir }}/../out/greeting.txt"
+    - ansible.builtin.set_stats:
+        data:
+          file: "{{ playbook_dir }}/../out/greeting.txt"
+          ports: [80, 443]
+          count: 3
+          map: {a: 1}
+-- out/.keep --
+-- changed.txt --
+changed by hand
