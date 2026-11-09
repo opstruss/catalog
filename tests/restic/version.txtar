@@ -1,0 +1,29 @@
+# A restic older than the plugin takes stops each program of the plugin
+# with the version that it needs, before restic runs anything.
+
+env HOME=$WORK/home
+env PATH=$WORK/bin:$PATH
+chmod 0755 bin/restic
+symlink catalog -> $CATALOG
+
+! exec opstruss plan
+stdout '^default/repo \| restic needs restic 0.17.1 or later; this is 0.17.0$'
+
+-- bin/restic --
+#!/bin/sh
+if [ "$*" = version ]; then
+	echo 'restic 0.17.0 compiled with go1.22.5 on linux/amd64'
+	exit 0
+fi
+echo "unexpected: restic $*" >&2
+exit 1
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+  nas:
+    source: ops.restic
+    with: {repository: ./repo, password: pw}
+units:
+  repo:
+    uses: nas

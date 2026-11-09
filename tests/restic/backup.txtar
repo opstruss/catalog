@@ -1,0 +1,82 @@
+# The task backup makes a snapshot of paths relative to the file of the
+# step, with tags and without what exclude leaves out, and gives its id
+# and its bytes; a second backup without changes adds none. A repository
+# that does not exist fails the task with what makes one, and the task
+# makes none. A file that restic cannot read still gives the snapshot,
+# and fails the task; continue_on_error lets the next step read it.
+
+env HOME=$WORK/home
+env RESTIC_PW=secret-pw
+symlink catalog -> $CATALOG
+
+! exec opstruss nightly
+stdout '^nas.backup \| the repository does not exist; a unit that uses the plugin makes it, as restic init does$'
+! exists repo
+
+exec opstruss up --yes
+exec opstruss nightly
+stdout '^nas.backup \| snapshot [0-9a-f]{8} saved: 2 new, 0 changed, and 0 unmodified files; [0-9]+ bytes added$'
+stdout '^nightly: nightly step 2 \| snapshot=[0-9a-f]{64} added=[1-9][0-9]* processed=10$'
+
+exec opstruss nightly
+stdout '^nightly: nightly step 2 \| snapshot=[0-9a-f]{64} added=0 processed=10$'
+
+exec opstruss status
+stdout '^default/repo \| [0-9a-f]{8} .* nightly '
+stdout '^default/repo \| 1 snapshots$'
+
+# The skip file stays out of every snapshot.
+exec sh -c 'RESTIC_REPOSITORY=repo RESTIC_PASSWORD=secret-pw restic ls latest'
+stdout '/data/a$'
+! stdout 'skip'
+
+# A file that restic cannot read, by a user other than root.
+chmod 0000 data/b
+exec opstruss partial
+stdout 'data/b: open .*: permission denied$'
+stdout '^nas.backup \| restic could not read every file, so the snapshot lacks them$'
+stdout '^partial: push: failed; continue_on_error goes on$'
+stdout '^partial: partial step 2 \| snapshot=[0-9a-f]{64}$'
+chmod 0644 data/b
+
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+  nas:
+    source: ops.restic
+    with:
+      repository: ./repo
+      password: ${{ secrets.pw }}
+secrets:
+  pw: {env: RESTIC_PW}
+units:
+  repo:
+    uses: nas
+tasks:
+  nightly:
+    steps:
+      - id: push
+        nas.backup:
+          paths: [./data]
+          tags: [nightly]
+          exclude: ['*.skip']
+      - run: echo "snapshot=$SNAPSHOT added=$ADDED processed=$PROCESSED"
+        env:
+          SNAPSHOT: ${{ steps.push.outputs.snapshot }}
+          ADDED: ${{ steps.push.outputs.added_bytes }}
+          PROCESSED: ${{ steps.push.outputs.processed_bytes }}
+  partial:
+    steps:
+      - id: push
+        nas.backup: {paths: [./data]}
+        continue_on_error: true
+      - run: echo "snapshot=$SNAPSHOT"
+        env:
+          SNAPSHOT: ${{ steps.push.outputs.snapshot }}
+-- data/a --
+aaaa
+-- data/b --
+bbbb
+-- data/c.skip --
+cccc

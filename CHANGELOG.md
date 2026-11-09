@@ -43,6 +43,13 @@ or a later version of a tool says so first, under Upgrade notes.
   `apt` and `dnf` run `up` and `destroy` as root, which `sudo: true` on
   the unit allows; `plan` and `status` run as the operator. `args` adds
   arguments to install and remove, as `--no-install-recommends`.
+- `restic` plugin: restic repositories as units, which a plan shows
+  before `restic init` makes them, with the tasks `backup`, `forget`,
+  `check`, and `restore`, whose outputs, as the snapshot that a backup
+  made and the bytes that it added, later steps read. The password and
+  the credentials of the backend reach restic as variables, never as
+  arguments. A backup that could not read a file gives its snapshot and
+  fails.
 - `packages` component: one list of packages for the package manager of
   the machine, brew on macOS, apt or dnf by `/etc/os-release` on Linux,
   or the input `manager`, with lists and `args` for each one.
@@ -52,5 +59,5 @@ or a later version of a tool says so first, under Upgrade notes.
   compose` draws it, and a line per change in CI.
 - Each package names the oldest OpsTruss that it takes in its manifest,
   `opstruss: "1.0"`, and each plugin the oldest version of its tool:
-  OpenTofu 1.6, Terraform 1.5, Docker Compose 2.23, and jq 1.6. An older one
-  stops the plugin with the version that it needs.
+  OpenTofu 1.6, Terraform 1.5, Docker Compose 2.23, restic 0.17.1, and jq
+  1.6. An older one stops the plugin with the version that it needs.

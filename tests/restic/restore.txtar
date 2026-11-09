@@ -1,0 +1,58 @@
+# The task restore writes a snapshot into target, relative to the file of
+# the step, with the paths of the snapshot under it, and gives the
+# directory; include restores only what it names. Without target, the
+# snapshot goes to the artifacts of the run.
+
+env HOME=$WORK/home
+env RESTIC_PW=secret-pw
+symlink catalog -> $CATALOG
+
+exec opstruss up --yes
+exec opstruss push
+exec opstruss get
+stdout '^get: get step 2 \| dir=.*/out$'
+stdout '^get: get step 2 \| a: aaaa$'
+! stdout 'b: '
+
+exec opstruss all
+stdout '^all: all step 2 \| dir=.*/restore$'
+stdout '^all: all step 2 \| a: aaaa$'
+stdout '^all: all step 2 \| b: bbbb$'
+
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+  nas:
+    source: ops.restic
+    with:
+      repository: ./repo
+      password: ${{ secrets.pw }}
+secrets:
+  pw: {env: RESTIC_PW}
+units:
+  repo:
+    uses: nas
+tasks:
+  push:
+    steps:
+      - nas.backup: {paths: [./data]}
+  get:
+    steps:
+      - id: restore
+        nas.restore: {target: ./out, include: [a]}
+      - &show
+        run: |
+          echo "dir=$DIR"
+          find "$DIR" -type f | sort | while read -r f; do echo "${f##*/}: $(cat "$f")"; done
+        env:
+          DIR: ${{ steps.restore.outputs.dir }}
+  all:
+    steps:
+      - id: restore
+        nas.restore: {}
+      - *show
+-- data/a --
+aaaa
+-- data/b --
+bbbb

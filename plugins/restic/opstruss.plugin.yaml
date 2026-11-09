@@ -1,0 +1,130 @@
+name: restic
+description: restic repositories, and backups into them
+opstruss: "1.0"
+requires: [restic, jq]
+inputs:
+  repository:
+    type: string
+    description: The repository, as restic -r takes it, such as /srv/restic or sftp:backup@nas:/srv/restic
+    required: true
+  password:
+    type: string
+    description: The password of the repository
+    required: true
+    sensitive: true
+  credentials:
+    type: object
+    description: Variables of the backend of the repository, by name, such as AWS_ACCESS_KEY_ID; each value is a string
+    default: {}
+    sensitive: true
+  args:
+    type: object
+    description: Arguments that restic gets after those of the plugin, by command
+    default: {}
+    properties:
+      init:
+        type: array
+        items: {type: string}
+      backup:
+        type: array
+        items: {type: string}
+      forget:
+        type: array
+        items: {type: string}
+      check:
+        type: array
+        items: {type: string}
+      restore:
+        type: array
+        items: {type: string}
+outputs:
+  id:
+    type: string
+    description: The id of the repository
+tasks:
+  plan:
+    run: [./restic.sh, plan]
+  up:
+    run: [./restic.sh, up]
+    stop: {signal: SIGINT, grace: 2m}
+  status:
+    run: [./restic.sh, status]
+  backup:
+    description: Back up files and directories into a new snapshot
+    inputs:
+      paths:
+        type: array
+        items: {type: string}
+        description: The files and directories to back up, relative to the file of the step
+        required: true
+      tags:
+        type: array
+        items: {type: string}
+        description: Tags of the snapshot
+        default: []
+      exclude:
+        type: array
+        items: {type: string}
+        description: Patterns of what to leave out, as restic --exclude takes them
+        default: []
+    outputs:
+      snapshot:
+        type: string
+        description: The id of the new snapshot
+      added_bytes:
+        type: integer
+        description: How many bytes of new data the snapshot added to the repository, before compression
+      processed_bytes:
+        type: integer
+        description: How many bytes the backup read
+    run: [./restic.sh, backup]
+    stop: {signal: SIGINT, grace: 2m}
+  forget:
+    description: Remove the snapshots that the policy does not keep, and the data that only they use
+    inputs:
+      keep:
+        type: object
+        description: How many snapshots to keep, as the --keep-<name> flags of restic forget; -1 keeps all
+        required: true
+        properties:
+          last: {type: integer}
+          hourly: {type: integer}
+          daily: {type: integer}
+          weekly: {type: integer}
+          monthly: {type: integer}
+          yearly: {type: integer}
+      prune:
+        type: boolean
+        description: Remove the data that only the forgotten snapshots use
+        default: true
+    outputs:
+      removed:
+        type: integer
+        description: How many snapshots forget removed
+    run: [./restic.sh, forget]
+    stop: {signal: SIGINT, grace: 2m}
+  check:
+    description: Check the repository for errors
+    run: [./restic.sh, check]
+    stop: {signal: SIGINT, grace: 2m}
+  restore:
+    description: Restore a snapshot into a directory
+    inputs:
+      snapshot:
+        type: string
+        description: The snapshot, by id or as latest
+        default: latest
+      target:
+        type: string
+        description: The directory to restore into, relative to the file of the step; the artifacts of the run without one
+      include:
+        type: array
+        items: {type: string}
+        description: Patterns of what to restore, as restic --include takes them; everything without one
+        default: []
+    outputs:
+      dir:
+        type: string
+        description: The directory that holds what was restored
+    run: [./restic.sh, restore]
+    stop: {signal: SIGINT, grace: 2m}

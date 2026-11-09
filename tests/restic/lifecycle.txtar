@@ -1,0 +1,63 @@
+# A repository as a unit. Its plan shows a repository that does not exist
+# yet, up makes it with restic init and gives its id, and the plan of one
+# that exists changes nothing; one removed by hand is made again. A wrong
+# password stops the plan with what restic says. The unit has no destroy:
+# destroy forgets it and leaves the repository, whose snapshots cannot be
+# made again.
+
+env HOME=$WORK/home
+env RESTIC_PW=secret-pw
+symlink catalog -> $CATALOG
+
+exec opstruss validate
+stdout '^valid$'
+
+exec opstruss plan
+stdout '^default/repo: will run: new; plan: create repository$'
+
+exec opstruss up --yes
+stdout '^default/repo \| created restic repository [0-9a-f]+ at \./repo$'
+stdout '^default/repo: up: done$'
+exists repo/config
+exec opstruss outputs --json
+stdout '"id": \{\s+"value": "[0-9a-f]{64}"'
+
+exec opstruss plan
+stdout '^default/repo: unchanged$'
+exec opstruss up --yes
+stdout '^default/repo: unchanged$'
+
+env RESTIC_PW=other-pw
+! exec opstruss plan
+stdout '^default/repo \| Fatal: wrong password or no key found$'
+env RESTIC_PW=secret-pw
+
+# A repository removed by hand.
+rm repo
+exec opstruss plan
+stdout '^default/repo: will run: plan: create repository$'
+exec opstruss up --yes
+exists repo/config
+
+exec opstruss destroy --yes
+stdout '^default/repo: forgotten without a destroy program$'
+exists repo/config
+exec opstruss status
+stdout '^default/repo: absent$'
+
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+  nas:
+    source: ops.restic
+    with:
+      repository: ./repo
+      password: ${{ secrets.pw }}
+secrets:
+  pw: {env: RESTIC_PW}
+outputs:
+  id: ${{ units.repo.outputs.id }}
+units:
+  repo:
+    uses: nas

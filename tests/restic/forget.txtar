@@ -1,0 +1,64 @@
+# The task forget removes the snapshots that keep does not keep, with
+# prune the data that only they use too, and gives how many it removed;
+# check finds no error after it. A key of keep that forget does not take,
+# as a typo, stops validate.
+
+env HOME=$WORK/home
+env RESTIC_PW=secret-pw
+symlink catalog -> $CATALOG
+
+exec opstruss up --yes
+exec opstruss push
+exec opstruss push
+exec opstruss push
+exec opstruss prune
+stdout '^nas.forget \| snapshots kept: 1, removed: 2$'
+stdout '^prune: prune step 2 \| removed=2$'
+stdout '^nas.check \| no errors were found$'
+
+exec opstruss prune
+stdout '^prune: prune step 2 \| removed=0$'
+
+cp typo.yaml opstruss.yaml
+! exec opstruss validate
+stderr 'nas.forget.keep: unknown key dayly; did you mean daily\?$'
+
+-- opstruss.yaml --
+name: app
+uses:
+  ops: ./catalog
+  nas:
+    source: ops.restic
+    with:
+      repository: ./repo
+      password: ${{ secrets.pw }}
+secrets:
+  pw: {env: RESTIC_PW}
+units:
+  repo:
+    uses: nas
+tasks:
+  push:
+    steps:
+      - nas.backup: {paths: [./data]}
+  prune:
+    steps:
+      - id: forget
+        nas.forget: {keep: {last: 1}}
+      - run: echo "removed=$REMOVED"
+        env:
+          REMOVED: ${{ steps.forget.outputs.removed }}
+      - nas.check: {}
+-- typo.yaml --
+name: app
+uses:
+  ops: ./catalog
+  nas:
+    source: ops.restic
+    with: {repository: ./repo, password: pw}
+tasks:
+  prune:
+    steps:
+      - nas.forget: {keep: {dayly: 7}}
+-- data/a --
+aaaa

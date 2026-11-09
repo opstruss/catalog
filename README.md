@@ -13,6 +13,7 @@ Official plugins and components for
 | [brew](plugins/brew) | Homebrew formulae and casks | `brew`, `jq` 1.6 |
 | [apt](plugins/apt) | Debian and Ubuntu packages, as root | `apt-get`, `dpkg-query`, `jq` 1.6, `sudo` |
 | [dnf](plugins/dnf) | Fedora, RHEL, and other RPM packages, as root | `dnf`, `rpm`, `jq` 1.6, `sudo` |
+| [restic](plugins/restic) | restic repositories, with tasks to back up, forget, check, and restore | `restic` 0.17.1, `jq` 1.6 |
 
 ## Components
 
