@@ -232,6 +232,10 @@ Before a pull request, the tests show that:
 
 A change that a project using a package can notice goes in
 [`CHANGELOG.md`](CHANGELOG.md), under `[Unreleased]`, in the same commit.
+A new package is a row of the table under `### Added`, as in the README;
+another change is an item that starts with the name of the package. An
+entry, as a paragraph, stays on one line: the notes of a release break a
+line where `CHANGELOG.md` does.
 
 The scripts of `tofu` and `terraform` differ only where the tools do, as
 in their versions: a change to one is checked in the other.
