@@ -40,6 +40,11 @@ exec opstruss plan
 exec opstruss destroy --yes
 grep '^uninstall --formula fd git$' brew/log
 
+# validate checks args of each manager as its plugin does
+cp typo.yaml opstruss.yaml
+! exec opstruss validate
+stderr 'units.tools.with.args: apt: unknown key instal; did you mean install\?$'
+
 -- opstruss.yaml --
 name: app
 uses:
@@ -84,6 +89,18 @@ units:
       packages: [git]
       brew: [fd]
       casks: [firefox]
+-- typo.yaml --
+name: app
+uses:
+  packages: ./catalog/components/packages
+units:
+  tools:
+    uses: packages
+    with:
+      manager: apt
+      packages: [git]
+      args:
+        apt: {instal: [--no-install-recommends]}
 -- outputs.txt --
 installed: {"packages":["fd-find","git"]}
 manager: apt

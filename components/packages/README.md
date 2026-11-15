@@ -63,9 +63,8 @@ its repositories lack fails at `up`, and the unit owns nothing of it.
         dnf: {install: [--setopt=install_weak_deps=False]}
 ```
 
-`opstruss plan` checks the keys of `args` through the plugin of the
-package manager; `validate` checks them only in a unit that uses the
-plugin itself.
+`opstruss validate` checks the keys of `args` of each package manager as
+its plugin does, as `install` for apt and dnf and `uninstall` for brew.
 
 ## The package manager
 

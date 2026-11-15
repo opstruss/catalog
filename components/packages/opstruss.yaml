@@ -34,10 +34,23 @@ inputs:
     type: object
     description: The input args of the plugin of each package manager, by its name
     default: {}
+    # As the input args of each plugin, so validate checks them here too.
     properties:
-      brew: {type: object}
-      apt: {type: object}
-      dnf: {type: object}
+      brew:
+        type: object
+        properties:
+          install: {type: array, items: {type: string}}
+          uninstall: {type: array, items: {type: string}}
+      apt:
+        type: object
+        properties:
+          install: {type: array, items: {type: string}}
+          remove: {type: array, items: {type: string}}
+      dnf:
+        type: object
+        properties:
+          install: {type: array, items: {type: string}}
+          remove: {type: array, items: {type: string}}
 uses:
   brew: ../../plugins/brew
   apt: ../../plugins/apt
