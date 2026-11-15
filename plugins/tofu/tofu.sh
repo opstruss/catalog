@@ -61,6 +61,16 @@ setup() {
 	TF_DATA_DIR=${OPSTRUSS_WORKDIR:-$tmp}/data
 	TF_IN_AUTOMATION=1
 	export TF_DATA_DIR TF_IN_AUTOMATION
+	# Without a cache that the operator chose, providers go to one of the
+	# user, so a unit does not download what another unit already has;
+	# OpenTofu 1.10 and later lock it, so plans at once share it.
+	if [ -z "${TF_PLUGIN_CACHE_DIR:-}" ] && [ -z "${TF_CLI_CONFIG_FILE:-}" ] &&
+		! grep -qs '^[[:space:]]*plugin_cache_dir' "$HOME/.tofurc" "$HOME/.terraformrc" &&
+		at_least "$tofu_version" 1.10; then
+		TF_PLUGIN_CACHE_DIR=$HOME/.cache/opstruss/tofu-plugins
+		mkdir -p "$TF_PLUGIN_CACHE_DIR"
+		export TF_PLUGIN_CACHE_DIR
+	fi
 	lockfile=
 	[ -w "$dir" ] || lockfile=-lockfile=readonly
 	words args.init >"$tmp/init.args"

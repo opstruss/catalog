@@ -15,9 +15,17 @@ exec opstruss exec infra -- tofu output -raw name
 stdout '^one$'
 exec opstruss exec infra -- tofu plan -no-color
 stdout 'No changes.'
-exec opstruss exec infra -- sh -c 'echo "$PWD"; echo "$TF_DATA_DIR"'
+exec opstruss exec infra -- sh -c 'echo "$PWD"; echo "$TF_DATA_DIR"; echo "cache=$TF_PLUGIN_CACHE_DIR"'
 stdout '/my project/infra$'
 stdout '/my project/.opstruss/work/default/infra/data$'
+# providers go to a cache of the user, unless the operator chose one
+stdout '^cache=.*/home/.cache/opstruss/tofu-plugins$'
+exists $WORK/home/.cache/opstruss/tofu-plugins
+mkdir $WORK/home
+exec sh -c 'echo "plugin_cache_dir = \"$HOME/mine\"" > $HOME/.tofurc'
+exec opstruss exec infra -- sh -c 'echo "cache=$TF_PLUGIN_CACHE_DIR"'
+stdout '^cache=$'
+rm $WORK/home/.tofurc
 
 # tofu show takes no -state; the state of the unit is a file.
 exec opstruss exec infra -- sh -c 'tofu show -no-color "$OPSTRUSS_STATE_DIR/terraform.tfstate"'

@@ -155,22 +155,19 @@ uses:
 
 ## Provider cache
 
-Each unit runs `tofu init` in a work directory of its own, so the first
-plan of each unit downloads its providers again. A cache in the CLI
-configuration of the machine downloads each provider once for every unit
-and project:
+Each unit runs `tofu init` in a work directory of its own. With OpenTofu
+1.10 and later, the plugin gives `tofu init` the cache
+`~/.cache/opstruss/tofu-plugins`, so a provider is downloaded once for
+every unit and project of the user; OpenTofu locks the cache, so the
+plans of units that run at once share it safely on a local disk. A
+module without `.terraform.lock.hcl` downloads its providers once more,
+to write their checksums.
 
-```hcl
-# ~/.tofurc
-plugin_cache_dir = "$HOME/.terraform.d/plugin-cache"
-```
-
-The directory must exist, as `mkdir -p ~/.terraform.d/plugin-cache`.
-OpenTofu 1.10 and later lock the cache, so the plans of units that run at
-once share it safely on a local disk. `TF_PLUGIN_CACHE_DIR` through
-`pass:` does the same, but the record of each unit keeps a fingerprint of
-it, so a machine with another path, as CI, stops at plan with
-`context changed`.
+A cache that you choose comes first: `plugin_cache_dir` in `~/.tofurc`
+or `~/.terraformrc`, or a `TF_CLI_CONFIG_FILE` or `TF_PLUGIN_CACHE_DIR`
+that `pass:` gives the unit. The record of each unit keeps a fingerprint
+of what `pass:` gives, so a machine with another path, as CI, stops at
+plan with `context changed`.
 
 ## State
 
