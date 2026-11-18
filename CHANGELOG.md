@@ -6,6 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). A r
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-18
+
 The first release of the catalog: 11 plugins and 1 component for OpsTruss 1.0. Each package names the oldest OpsTruss and tool versions that it takes, and stops with the version that it needs when one is older. Its README says what it does.
 
 ### Added
