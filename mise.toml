@@ -11,6 +11,4 @@ uv = "0.13.7"
 vault = "2.2.1"
 "pipx:ansible-core" = "2.22.0"
 "go:github.com/rogpeppe/go-internal/cmd/testscript" = "1.16.0"
-# The tests run opstruss at a commit of its main branch until its first
-# release.
-"go:github.com/opstruss/opstruss" = "67e2679c04949f30d94bc0376561c2cb3a581d32"
+"github:opstruss/opstruss" = "1.0.0"
