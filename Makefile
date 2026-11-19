@@ -22,13 +22,22 @@ export DOCKER_CONFIG
 
 # The tests of compose that start containers need a Docker daemon, which
 # the macOS runners of GitHub lack; inputs.txtar and config.txtar need only
-# the docker CLI, and nocompose.txtar not even that.
+# the docker CLI, and nocompose.txtar not even that. So does the test of s3
+# that runs a storage.
 TESTS := $(wildcard tests/*/*.txtar)
 DOCKER := $(shell docker info >/dev/null 2>&1 && echo yes)
 ifneq ($(DOCKER),yes)
-SKIPPED := $(filter-out tests/compose/inputs.txtar tests/compose/config.txtar tests/compose/nocompose.txtar,$(filter tests/compose/%,$(TESTS)))
-TESTS := $(filter-out $(SKIPPED),$(TESTS))
+SKIPPED := $(filter-out tests/compose/inputs.txtar tests/compose/config.txtar tests/compose/nocompose.txtar,$(filter tests/compose/%,$(TESTS))) tests/s3/backend.txtar
 endif
+
+# The tests of s3 need plugin backends, from level 1.1 of opstruss: an
+# older one, as the release that mise.toml pins until then, leaves them
+# out. The level is what init writes in a new opstruss.yaml.
+LEVEL := $(shell dir=$$(mktemp -d) && cd "$$dir" && "$(OPSTRUSS)" init --name level >/dev/null 2>&1; sed -n 's/^opstruss: "\(.*\)"$$/\1/p' "$$dir/opstruss.yaml"; rm -rf "$$dir")
+ifeq ($(LEVEL),1.0)
+SKIPPED += $(filter tests/s3/%,$(TESTS))
+endif
+TESTS := $(filter-out $(SKIPPED),$(TESTS))
 
 # check-extra-masked-returns finds a command whose failure a $(...) in an
 # argument hides, as cmd "$(sha256 file)". Python, of the callback of
@@ -39,5 +48,5 @@ lint:
 	$(ACTIONLINT)
 
 test:
-	$(if $(SKIPPED),@echo 'skipped without a Docker daemon: $(SKIPPED)')
+	$(if $(SKIPPED),@echo 'skipped without a Docker daemon or level 1.1 of opstruss: $(sort $(SKIPPED))')
 	$(TESTSCRIPT) -e CATALOG=$(CURDIR) -e DOCKER_CONFIG $(TESTS)

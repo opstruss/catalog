@@ -1,0 +1,20 @@
+# An aws older than 2.22.5, without --if-match for put-object and
+# delete-object, stops the plugin with the version that it needs, before
+# it touches the bucket.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+exec sh -c 'mkdir -p bin && printf "#!/bin/sh\necho aws-cli/2.22.4 Python/3.12.6 Darwin/25.6.0\n" > bin/aws && chmod 755 bin/aws'
+env PATH=$WORK/bin:$PATH
+! exec opstruss plan
+stderr 'the backend stopped: it exited with 1: s3 needs aws 2.22.5 or later, which has --if-match for put-object and delete-object; this is 2.22.4$'
+
+-- opstruss.yaml --
+opstruss: "1.1"
+name: shop
+backend:
+  uses: ./catalog/plugins/s3
+  with: {bucket: state}
+units:
+  web:
+    run: echo web ran
