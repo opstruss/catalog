@@ -1,0 +1,72 @@
+# The state of a project in moto, a server that plays AWS S3, in Docker:
+# init passes the probe, with its conditional writes, deletes, and scan,
+# up keeps the record there, a second checkout finds it, and destroy takes
+# it away.
+#
+# The container has a fixed name, so a run that failed leaves it for the
+# next one to take down first.
+
+env HOME=$WORK/home
+env S3_KEY=catalog-test-key
+env S3_SECRET=catalog-test-secret
+symlink catalog -> $CATALOG
+
+exec docker rm -f catalog-test-moto
+exec docker run -d --name catalog-test-moto -p 127.0.0.1:18335:5000 motoserver/moto:5.2.5
+exec sh -c 'for i in $(seq 60); do AWS_ACCESS_KEY_ID=$S3_KEY AWS_SECRET_ACCESS_KEY=$S3_SECRET aws s3api create-bucket --bucket state --region us-east-1 --endpoint-url http://127.0.0.1:18335 > /dev/null 2>&1 && exit 0; sleep 1; done; exit 1'
+
+cd one
+exec opstruss init --stack default
+stdout '^wrote default/_meta in s3://state/platform/\?endpoint=127.0.0.1:18335$'
+exec opstruss up --yes
+stdout '^default/web \| web ran$'
+
+cd ../two
+exec opstruss plan
+stdout '^default/web: unchanged$'
+exec opstruss destroy --yes
+stdout '^default/web \| web gone$'
+cd ../one
+exec opstruss plan
+stdout '^default/web: will run: new$'
+
+exec docker rm -f catalog-test-moto
+
+-- one/opstruss.yaml --
+opstruss: "1.1"
+name: shop
+secrets:
+  key: {env: S3_KEY}
+  secret: {env: S3_SECRET}
+backend:
+  uses: ../catalog/plugins/s3
+  with:
+    bucket: state
+    prefix: platform/
+    region: us-east-1
+    endpoint: http://127.0.0.1:18335
+    access_key_id: ${{ secrets.key }}
+    secret_access_key: ${{ secrets.secret }}
+units:
+  web:
+    run: echo web ran
+    destroy: echo web gone
+-- two/opstruss.yaml --
+opstruss: "1.1"
+name: shop
+secrets:
+  key: {env: S3_KEY}
+  secret: {env: S3_SECRET}
+backend:
+  uses: ../catalog/plugins/s3
+  with:
+    bucket: state
+    prefix: platform/
+    region: us-east-1
+    endpoint: http://127.0.0.1:18335
+    access_key_id: ${{ secrets.key }}
+    secret_access_key: ${{ secrets.secret }}
+units:
+  web:
+    run: echo web ran
+    destroy: echo web gone

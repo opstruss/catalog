@@ -22,12 +22,12 @@ export DOCKER_CONFIG
 
 # The tests of compose that start containers need a Docker daemon, which
 # the macOS runners of GitHub lack; inputs.txtar and config.txtar need only
-# the docker CLI, and nocompose.txtar not even that. So does the test of s3
-# that runs a storage.
+# the docker CLI, and nocompose.txtar not even that. So do the tests of s3
+# that run a storage.
 TESTS := $(wildcard tests/*/*.txtar)
 DOCKER := $(shell docker info >/dev/null 2>&1 && echo yes)
 ifneq ($(DOCKER),yes)
-SKIPPED := $(filter-out tests/compose/inputs.txtar tests/compose/config.txtar tests/compose/nocompose.txtar,$(filter tests/compose/%,$(TESTS))) tests/s3/backend.txtar
+SKIPPED := $(filter-out tests/compose/inputs.txtar tests/compose/config.txtar tests/compose/nocompose.txtar,$(filter tests/compose/%,$(TESTS))) tests/s3/backend.txtar tests/s3/moto.txtar
 endif
 
 # The tests of s3 need plugin backends, from level 1.1 of opstruss: an

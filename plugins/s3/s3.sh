@@ -3,8 +3,8 @@
 # one JSON-RPC message a line, over a bucket of S3: each key is an object
 # under the prefix, written with If-Match or If-None-Match, and a lock is
 # an object that holds its holder, made with If-None-Match: *, whose ETag
-# is its token. Each operation runs one aws s3api, with its data in a
-# file rather than an argument, which ps shows.
+# is its token. Each operation runs one aws s3api, and scan one aws s3 cp,
+# with its data in a file rather than an argument, which ps shows.
 #
 # It answers until its stdin ends; what aws says of an operation that
 # fails is the message of the answer.
@@ -100,7 +100,7 @@ op_initialize() {
 		refuse ""
 		return
 	fi
-	jq -nc --arg location "$location" '{protocol: 1, location: $location, capabilities: {}}' >"$tmp/result"
+	jq -nc --arg location "$location" '{protocol: 1, location: $location, capabilities: {scan: true}}' >"$tmp/result"
 	answer
 }
 
@@ -145,6 +145,58 @@ op_list() {
 	fi
 	jq -c --arg prefix "$prefix" '{keys: [(. // [])[] | ltrimstr($prefix)]}' "$tmp/keys" >"$tmp/result"
 	answer
+}
+
+# scan copies every object under the prefix with one aws s3 cp, which
+# fetches them at once, into a directory of its own: no key of the state is
+# both a file and a directory, so each is a file there. An object that goes
+# while it copies, such as a lock that was let go, fails the copy, which is
+# tried again, a few times.
+op_scan() {
+	from=$(jq -r '.params.prefix' "$tmp/request")
+	# A prefix that does not end at a / is read from its directory.
+	dir=${from%"${from##*/}"}
+	for _ in 1 2 3; do
+		rm -rf "$tmp/scan"
+		mkdir "$tmp/scan"
+		if aws s3 cp --recursive --only-show-errors "s3://$bucket/$prefix$dir" "$tmp/scan" ${endpoint:+--endpoint-url "$endpoint"} >/dev/null 2>"$tmp/err"; then
+			scanned
+			return
+		fi
+	done
+	refuse ""
+}
+
+# scanned answers with the keys under $from in $tmp/scan, each with its
+# content as it is, through jq --rawfile, a few hundred files for each jq
+# so that no command line grows too long.
+scanned() {
+	(cd "$tmp/scan" && find . -type f) >"$tmp/files"
+	: >"$tmp/items"
+	set --
+	n=0
+	while IFS= read -r file; do
+		file=${file#./}
+		case $dir$file in
+		"$from"*) ;;
+		*) continue ;;
+		esac
+		set -- "$@" --arg "k$n" "$dir$file" --rawfile "d$n" "$tmp/scan/$file"
+		n=$((n + 1))
+		if [ "$n" = 200 ]; then
+			items "$@"
+			set --
+			n=0
+		fi
+	done <"$tmp/files"
+	items "$@"
+	jq -sc '{items: (add // [])}' "$tmp/items" >"$tmp/result"
+	answer
+}
+
+# items adds the $n files of the arguments to $tmp/items, as a list.
+items() {
+	jq -nc --argjson n "$n" "$@" '[range($n) as $i | {key: $ARGS.named["k\($i)"], data: $ARGS.named["d\($i)"]}]' >>"$tmp/items"
 }
 
 # A lock that went between the put that found it and the get of its holder
@@ -202,7 +254,7 @@ while IFS= read -r line; do
 	: >"$tmp/err"
 	: >"$tmp/data"
 	case $method in
-	initialize | get | put | delete | list | lock | unlock) "op_$method" ;;
+	initialize | get | put | delete | list | scan | lock | unlock) "op_$method" ;;
 	*)
 		echo "s3 has no method $method" >"$tmp/err"
 		msg=$(cat "$tmp/err")

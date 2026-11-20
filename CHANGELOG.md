@@ -8,7 +8,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). A r
 
 ### Added
 
-- [s3](plugins/s3): a backend that keeps the state of OpsTruss 1.1 in a bucket of Amazon S3, or of a storage that speaks S3 with conditional writes and deletes, so a team and CI share the records and locks of a stack; needs `aws` 2.22.5 and `jq` 1.6.
+- [s3](plugins/s3): a backend that keeps the state of OpsTruss 1.1 in a bucket of Amazon S3, or of a storage that speaks S3 with conditional writes and deletes, so a team and CI share the records and locks of a stack, and a plan reads a stack with one `aws`; needs `aws` 2.22.5 and `jq` 1.6.
 
 ## [1.0.0] - 2026-11-18
 
