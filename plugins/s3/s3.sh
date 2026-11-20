@@ -37,10 +37,15 @@ session_token=$(input session_token)
 [ -z "$session_token" ] || export AWS_SESSION_TOKEN="$session_token"
 export AWS_PAGER=""
 
+# The location names the endpoint by its host, port, and path: without its
+# scheme, as either reaches the same storage, its userinfo, which may hold
+# a credential, or a last /.
 location="s3://$bucket/$prefix"
 if [ -n "$endpoint" ]; then
-	host=${endpoint#*://}
-	location="$location?endpoint=${host%%/*}"
+	where=${endpoint#*://}
+	host=${where%%/*}
+	path=${where#"$host"}
+	location="$location?endpoint=${host##*@}${path%/}"
 fi
 
 # s3 runs aws s3api with the endpoint, its stdout the result, and what it
@@ -145,7 +150,10 @@ op_list() {
 # A lock that went between the put that found it and the get of its holder
 # is taken again, a few times.
 op_lock() {
-	jq -c '{holder: .params.holder}' "$tmp/request" >"$tmp/lock"
+	# A value of its own gives each lock an ETag, its token, of its own, also
+	# when the same holder takes it again.
+	nonce=$(od -An -N8 -tx1 /dev/urandom | tr -d ' \n')
+	jq -c --arg nonce "$nonce" '{holder: .params.holder, nonce: $nonce}' "$tmp/request" >"$tmp/lock"
 	for _ in 1 2 3; do
 		cp "$tmp/lock" "$tmp/body"
 		if put "$key" ""; then

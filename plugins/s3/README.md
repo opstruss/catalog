@@ -80,14 +80,17 @@ file.
   when it is new, so a writer that lost its lock fails rather than
   writing over what another wrote.
 - A lock is the object `state.lock` beside the record, made with
-  `If-None-Match: *` and holding who holds it, and its ETag is the
-  token that lets it go, through a delete with `If-Match`. A lock does
+  `If-None-Match: *` and holding who holds it and a random value, so
+  that its ETag, the token that lets it go through a delete with
+  `If-Match`, is of that lock alone. A lock does
   not go away when its holder dies: OpsTruss takes over one whose holder
   died on the same machine, and `opstruss unlock <unit>` lets go of one
   of another machine.
-- The location is `s3://<bucket>/<prefix>`, with `?endpoint=<host>` for
-  another storage; with the plugin, it names the place of the state,
-  and a project that moves to another one runs `opstruss state migrate`.
+- The location is `s3://<bucket>/<prefix>`, with
+  `?endpoint=<host>[:<port>][/<path>]` for another storage, without the
+  scheme, the userinfo, or a last `/` of `endpoint`; with the plugin, it
+  names the place of the state, and a project that moves to another one
+  runs `opstruss state migrate`.
 - Turn on versioning in the bucket, so an earlier record can be got back.
 
 The role of OpsTruss needs `s3:GetObject`, `s3:PutObject`, and

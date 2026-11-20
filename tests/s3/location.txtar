@@ -1,0 +1,39 @@
+# The location names the endpoint by its host, port, and path, without its
+# scheme, its userinfo, or a last /: two storages behind one host differ,
+# and a credential in the URL does not show.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+exec sh -c 'mkdir -p bin && cp aws bin/aws && chmod 755 bin/aws'
+env PATH=$WORK/bin:$PATH
+! exec opstruss plan
+stderr 'stack default has no state in s3://state/platform/\?endpoint=gw.example.com:8443/storage/b; start it there'
+! stderr 'secret'
+
+-- aws --
+#!/bin/sh
+# A new enough aws over a bucket with no key at all.
+case "$1 $2" in
+--version*)
+	echo aws-cli/2.40.1 Python/3.13.0 Linux/6.0.0
+	;;
+"s3api list-objects-v2")
+	echo null
+	;;
+*)
+	echo 'An error occurred (NoSuchKey) when calling the GetObject operation: The specified key does not exist.' >&2
+	exit 254
+	;;
+esac
+-- opstruss.yaml --
+opstruss: "1.1"
+name: shop
+backend:
+  uses: ./catalog/plugins/s3
+  with:
+    bucket: state
+    prefix: platform/
+    endpoint: https://key:secret@gw.example.com:8443/storage/b/
+units:
+  web:
+    run: echo web ran
