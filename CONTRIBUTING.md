@@ -16,6 +16,7 @@ Start with the smallest kind that does the work:
 | Without a script | tasks run a program as argv, with `${{ inputs.<name> }}` in its items; an output reads its stdout | below |
 | A script | `run: [./<name>.sh, <task>]`, a POSIX sh script that loads `lib/opstruss.sh` | [`examples/file`](examples/file), [`plugins/compose`](plugins/compose) |
 | A script with an exact plan | its plan gives a digest of what `up` would apply, and `up` checks it | [`examples/file`](examples/file), [`plugins/tofu`](plugins/tofu) |
+| A backend | `backend: {run: [./<name>.sh]}`, a script that serves the [backend protocol](https://opstruss.github.io/v1.1/reference/backend-protocol) on its stdin and stdout, for OpsTruss 1.1 | [`plugins/s3`](plugins/s3) |
 | Compiled | a Go program that the plugin ships through `bin:`, once a script is not enough | none yet |
 
 A plugin without a script:

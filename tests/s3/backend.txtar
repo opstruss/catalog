@@ -1,0 +1,82 @@
+# The state of a project in a bucket of a storage that speaks S3, here
+# SeaweedFS in Docker: init passes the probe and makes _meta there, up and
+# destroy keep their records there, a second checkout finds them, and
+# doctor runs the probe again.
+#
+# The container has a fixed name, so a run that failed leaves it for the
+# next one to take down first.
+
+env HOME=$WORK/home
+env S3_KEY=catalog-test-key
+env S3_SECRET=catalog-test-secret
+symlink catalog -> $CATALOG
+
+exec docker rm -f catalog-test-s3
+exec docker run -d --name catalog-test-s3 -p 127.0.0.1:18333:8333 chrislusf/seaweedfs:4.50 server -s3
+exec sh -c 'for i in $(seq 60); do AWS_ACCESS_KEY_ID=$S3_KEY AWS_SECRET_ACCESS_KEY=$S3_SECRET aws s3api create-bucket --bucket state --region us-east-1 --endpoint-url http://127.0.0.1:18333 > /dev/null 2>&1 && exit 0; sleep 1; done; exit 1'
+
+# a run before init stops; init passes the probe and makes _meta
+cd one
+! exec opstruss plan
+stderr 'stack default has no state in s3://state/platform/\?endpoint=127.0.0.1:18333; start it there with opstruss init --stack default'
+exec opstruss init --stack default
+stdout '^wrote default/_meta in s3://state/platform/\?endpoint=127.0.0.1:18333$'
+exec opstruss up --yes
+stdout '^default/web \| web ran$'
+exec opstruss state pull web
+stdout '"address": "default/web"'
+
+# a second checkout finds the record, and doctor probes the bucket
+cd ../two
+exec opstruss plan
+stdout '^default/web: unchanged$'
+exec opstruss doctor
+stdout 'stack default keeps its state in s3://state/platform/\?endpoint=127.0.0.1:18333, which passes the probe'
+
+# destroy from the second checkout takes the record away there
+exec opstruss destroy --yes
+stdout '^default/web \| web gone$'
+cd ../one
+exec opstruss plan
+stdout '^default/web: will run: new$'
+
+exec docker rm -f catalog-test-s3
+
+-- one/opstruss.yaml --
+opstruss: "1.1"
+name: shop
+secrets:
+  key: {env: S3_KEY}
+  secret: {env: S3_SECRET}
+backend:
+  uses: ../catalog/plugins/s3
+  with:
+    bucket: state
+    prefix: platform/
+    region: us-east-1
+    endpoint: http://127.0.0.1:18333
+    access_key_id: ${{ secrets.key }}
+    secret_access_key: ${{ secrets.secret }}
+units:
+  web:
+    run: echo web ran
+    destroy: echo web gone
+-- two/opstruss.yaml --
+opstruss: "1.1"
+name: shop
+secrets:
+  key: {env: S3_KEY}
+  secret: {env: S3_SECRET}
+backend:
+  uses: ../catalog/plugins/s3
+  with:
+    bucket: state
+    prefix: platform/
+    region: us-east-1
+    endpoint: http://127.0.0.1:18333
+    access_key_id: ${{ secrets.key }}
+    secret_access_key: ${{ secrets.secret }}
+units:
+  web:
+    run: echo web ran
+    destroy: echo web gone

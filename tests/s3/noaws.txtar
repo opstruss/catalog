@@ -1,0 +1,19 @@
+# Without aws in PATH, a command that opens the state says so before the
+# plugin starts.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+exec sh -c 'mkdir -p bin && ln -s "$(command -v opstruss)" bin/opstruss && ln -s "$(command -v jq)" bin/jq'
+env PATH=$WORK/bin:/usr/bin:/bin
+! exec opstruss plan
+stderr 'backend ./catalog/plugins/s3 requires aws, which is not in PATH'
+
+-- opstruss.yaml --
+opstruss: "1.1"
+name: shop
+backend:
+  uses: ./catalog/plugins/s3
+  with: {bucket: state}
+units:
+  web:
+    run: echo web ran
