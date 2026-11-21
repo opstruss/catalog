@@ -1,0 +1,80 @@
+# scan gives each key under the prefix with its content, from one aws s3
+# cp. It answers unsupported, so that OpsTruss lists the keys and gets each,
+# when aws refuses keys that differ only by case, which a disk that does not
+# tell them apart would keep as one file, and when the objects are more
+# than an answer holds. aws here is a stub over the files of bucket/.
+
+env HOME=$WORK/home
+symlink catalog -> $CATALOG
+exec sh -c 'mkdir -p bin && cp aws bin/aws && chmod 755 bin/aws'
+env PATH=$WORK/bin:$PATH
+env OPSTRUSS_PLUGIN_DIR=$WORK/catalog/plugins/s3
+env INPUT_BUCKET=state
+env INPUT_PREFIX=platform/
+
+# each key with its content as it is, its last newline too
+stdin requests.jsonl
+exec sh catalog/plugins/s3/s3.sh
+cmp stdout items.jsonl
+
+# keys that differ only by case
+env STUB_CASE=1
+stdin requests.jsonl
+exec sh catalog/plugins/s3/s3.sh
+cmp stdout case.jsonl
+
+# objects that are more than an answer of 64 MiB holds
+env STUB_CASE=
+exec sh -c 'mkdir bucket/state/platform/prod/big && yes aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa | head -c 67108864 > bucket/state/platform/prod/big/state.json'
+stdin requests.jsonl
+exec sh catalog/plugins/s3/s3.sh
+cmp stdout large.jsonl
+
+-- aws --
+#!/bin/sh
+# A new enough aws whose s3 cp --recursive copies the files under
+# bucket/<bucket>/<key>, and with $STUB_CASE fails as aws does on keys that
+# differ only by case.
+case "$1 $2" in
+--version*)
+	echo aws-cli/2.40.1 Python/3.13.0 Linux/6.0.0
+	;;
+"s3 cp")
+	shift 2
+	conflict=
+	while [ $# -gt 0 ]; do
+		case $1 in
+		--case-conflict) conflict=$2 && shift ;;
+		s3://*) from=${1#s3://} && to=$2 && shift ;;
+		esac
+		shift
+	done
+	if [ "$conflict" != error ]; then
+		echo "the stub expects --case-conflict error, not $conflict" >&2
+		exit 1
+	fi
+	if [ -n "$STUB_CASE" ]; then
+		echo "Failed to download s3://${from}WEB/state.json because a file whose name differs only by case either exists or is being downloaded." >&2
+		exit 1
+	fi
+	cp -R "bucket/$from." "$to"
+	;;
+*)
+	echo "the stub has no $1 $2" >&2
+	exit 254
+	;;
+esac
+-- requests.jsonl --
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol":1}}
+{"jsonrpc":"2.0","id":2,"method":"scan","params":{"prefix":"prod/"}}
+-- bucket/state/platform/prod/web/state.json --
+{"version":1}
+-- items.jsonl --
+{"jsonrpc":"2.0","id":1,"result":{"protocol":1,"location":"s3://state/platform/","capabilities":{"scan":true}}}
+{"jsonrpc":"2.0","id":2,"result":{"items":[{"key":"prod/web/state.json","data":"{\"version\":1}\n"}]}}
+-- case.jsonl --
+{"jsonrpc":"2.0","id":1,"result":{"protocol":1,"location":"s3://state/platform/","capabilities":{"scan":true}}}
+{"jsonrpc":"2.0","id":2,"error":{"code":-32000,"message":"Failed to download s3://state/platform/prod/WEB/state.json because a file whose name differs only by case either exists or is being downloaded.","data":{"code":"unsupported"}}}
+-- large.jsonl --
+{"jsonrpc":"2.0","id":1,"result":{"protocol":1,"location":"s3://state/platform/","capabilities":{"scan":true}}}
+{"jsonrpc":"2.0","id":2,"error":{"code":-32000,"message":"the objects under platform/prod/ are more than an answer holds","data":{"code":"unsupported"}}}

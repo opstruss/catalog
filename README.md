@@ -18,7 +18,7 @@ Official plugins and components for
 | [ansible](plugins/ansible) | Ansible playbooks | `ansible-playbook` and `ansible-config` of ansible-core 2.16, `jq` 1.6 |
 | [mise](plugins/mise) | The tools of mise configurations | `mise` 2025.11, `jq` 1.6 |
 | [chezmoi](plugins/chezmoi) | Dotfiles that chezmoi applies from a repository | `chezmoi` 2.40, `git`, `jq` 1.6 |
-| [s3](plugins/s3) | none: a backend that keeps the state in S3 or a storage that speaks it, for OpsTruss 1.1 | `aws` 2.22.5, `jq` 1.6 |
+| [s3](plugins/s3) | none: a backend that keeps the state in S3 or a storage that speaks it, for OpsTruss 1.1 | `aws` 2.32.33, `jq` 1.6 |
 
 ## Components
 

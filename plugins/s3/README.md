@@ -5,9 +5,9 @@ speaks S3 with conditional writes and conditional deletes, so a team and
 CI share the records and the locks of a stack. The plugin is a backend:
 `backend:` uses it, not a unit.
 
-Needs OpsTruss 1.1 or later, `aws` 2.22.5 or later, the first with
-`--if-match` for `put-object` and `delete-object`, and `jq` 1.6 or later
-in `PATH`.
+Needs OpsTruss 1.1 or later, `aws` 2.32.33 or later, the first with both
+`--if-match` for `put-object` and `delete-object` and `--case-conflict`
+for `s3 cp`, and `jq` 1.6 or later in `PATH`.
 
 ## Use
 
@@ -104,7 +104,8 @@ A storage that speaks S3 needs conditional writes (`If-None-Match` and
 `DeleteObject`). `opstruss init` and `opstruss doctor` check that with a
 probe, and refuse a storage that fails one step, such as one that deletes
 an object whose ETag does not match. The tests of the catalog run against
-SeaweedFS 4.50.
+SeaweedFS 4.50 and moto 5.2.5, a server that plays AWS S3; they do not
+reach AWS S3 itself yet.
 
 `aws` reaches a bucket of another storage at `<bucket>.<host>` unless the
 endpoint is an IP address; for one that serves buckets as paths, set
@@ -113,7 +114,12 @@ names.
 
 ## Speed
 
-The plugin runs one `aws` for each operation, so a plan reads each record
-in about the time that `aws` takes to start. A compiled plugin replaces
-the script, with the same inputs and location, if that is too slow for a
-stack of many units.
+Each operation runs one `aws`, which takes about half a second to start,
+so what counts is how many operations a command makes. A plan reads a
+stack with one operation, a single `aws s3 cp` that fetches its objects
+at once, so it takes about as long for 30 units as for 3. `up` adds five
+operations for each unit that runs, and one for each unit that it needs,
+three for a unit that does not change after one that ran, and none for
+the others. A stack whose objects are more than an answer of 64 MiB
+holds, or with keys that differ only by case, is read an object at a
+time.

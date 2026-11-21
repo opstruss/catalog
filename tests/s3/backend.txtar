@@ -1,7 +1,7 @@
 # The state of a project in a bucket of a storage that speaks S3, here
 # SeaweedFS in Docker: init passes the probe and makes _meta there, up and
-# destroy keep their records there, a second checkout finds them, and
-# doctor runs the probe again.
+# destroy keep their records there, a second checkout finds them, plan
+# sees a lock that another host holds, and doctor runs the probe again.
 #
 # The container has a fixed name, so a run that failed leaves it for the
 # next one to take down first.
@@ -32,6 +32,16 @@ exec opstruss plan
 stdout '^default/web: unchanged$'
 exec opstruss doctor
 stdout 'stack default keeps its state in s3://state/platform/\?endpoint=127.0.0.1:18333, which passes the probe'
+
+# a lock that a run of another host holds shows in the plan, which read
+# it with the records, until unlock lets it go
+exec sh -c 'printf "{\"holder\":{\"version\":1,\"run\":\"20260101T000000Z-away0001\",\"host\":\"elsewhere\",\"hostname\":\"far\",\"pid\":4242,\"since\":\"2026-01-01T00:00:00Z\"},\"nonce\":\"1\"}" > lock.json && AWS_ACCESS_KEY_ID=$S3_KEY AWS_SECRET_ACCESS_KEY=$S3_SECRET aws s3api put-object --bucket state --key platform/default/web/state.lock --body lock.json --region us-east-1 --endpoint-url http://127.0.0.1:18333 > /dev/null'
+exec opstruss plan
+stdout '^default/web: locked by run 20260101T000000Z-away0001 \(pid 4242 on far, for '
+exec opstruss unlock web --yes
+stdout 'released the lock that run 20260101T000000Z-away0001'
+exec opstruss plan
+stdout '^default/web: unchanged$'
 
 # destroy from the second checkout takes the record away there
 exec opstruss destroy --yes
