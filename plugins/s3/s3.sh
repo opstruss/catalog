@@ -12,11 +12,16 @@
 # shellcheck source-path=SCRIPTDIR source=../../lib/opstruss.sh
 . "$OPSTRUSS_PLUGIN_DIR/../../lib/opstruss.sh"
 
-# aws 2.22.5 is the first with --if-match for put-object and delete-object.
+# aws 2.32.33 is the first with both --if-match for put-object and
+# delete-object and --case-conflict for s3 cp.
 aws_version=$(aws --version 2>&1)
 aws_version=${aws_version#aws-cli/}
 aws_version=${aws_version%% *}
-at_least "$aws_version" 2.22.5 || fail "s3 needs aws 2.22.5 or later, which has --if-match for put-object and delete-object; this is $aws_version"
+at_least "$aws_version" 2.32.33 || fail "s3 needs aws 2.32.33 or later, which has --if-match for put-object and delete-object and --case-conflict for s3 cp; this is $aws_version"
+
+# OpsTruss reads an answer of at most 64 MiB; a result leaves room in it for
+# the message around it.
+max_result=$((64 * 1024 * 1024 - 1024))
 
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/opstruss-s3.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT
@@ -151,7 +156,9 @@ op_list() {
 # fetches them at once, into a directory of its own: no key of the state is
 # both a file and a directory, so each is a file there. An object that goes
 # while it copies, such as a lock that was let go, fails the copy, which is
-# tried again, a few times.
+# tried again, a few times. Keys that differ only by case, which a disk that
+# does not tell them apart would keep as one file, stop the copy, and the
+# answer is unsupported: OpsTruss then lists the keys and gets each.
 op_scan() {
 	from=$(jq -r '.params.prefix' "$tmp/request")
 	# A prefix that does not end at a / is read from its directory.
@@ -159,8 +166,12 @@ op_scan() {
 	for _ in 1 2 3; do
 		rm -rf "$tmp/scan"
 		mkdir "$tmp/scan"
-		if aws s3 cp --recursive --only-show-errors "s3://$bucket/$prefix$dir" "$tmp/scan" ${endpoint:+--endpoint-url "$endpoint"} >/dev/null 2>"$tmp/err"; then
+		if aws s3 cp --recursive --only-show-errors --case-conflict error "s3://$bucket/$prefix$dir" "$tmp/scan" ${endpoint:+--endpoint-url "$endpoint"} >/dev/null 2>"$tmp/err"; then
 			scanned
+			return
+		fi
+		if grep -q 'differs only by case' "$tmp/err"; then
+			refuse unsupported
 			return
 		fi
 	done
@@ -169,7 +180,8 @@ op_scan() {
 
 # scanned answers with the keys under $from in $tmp/scan, each with its
 # content as it is, through jq --rawfile, a few hundred files for each jq
-# so that no command line grows too long.
+# so that no command line grows too long; an answer larger than OpsTruss
+# reads is unsupported, so it lists the keys and gets each.
 scanned() {
 	(cd "$tmp/scan" && find . -type f) >"$tmp/files"
 	: >"$tmp/items"
@@ -190,6 +202,15 @@ scanned() {
 		fi
 	done <"$tmp/files"
 	items "$@"
+	# The answer that joins the lists of items is within a few bytes of
+	# their size, which max_result leaves room for, so it tells before jq
+	# joins them.
+	size=$(wc -c <"$tmp/items")
+	if [ "$((size))" -gt "$max_result" ]; then
+		echo "the objects under $prefix$from are more than an answer holds" >"$tmp/err"
+		refuse unsupported
+		return
+	fi
 	jq -sc '{items: (add // [])}' "$tmp/items" >"$tmp/result"
 	answer
 }

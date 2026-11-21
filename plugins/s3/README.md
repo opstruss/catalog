@@ -5,9 +5,9 @@ speaks S3 with conditional writes and conditional deletes, so a team and
 CI share the records and the locks of a stack. The plugin is a backend:
 `backend:` uses it, not a unit.
 
-Needs OpsTruss 1.1 or later, `aws` 2.22.5 or later, the first with
-`--if-match` for `put-object` and `delete-object`, and `jq` 1.6 or later
-in `PATH`.
+Needs OpsTruss 1.1 or later, `aws` 2.32.33 or later, the first with both
+`--if-match` for `put-object` and `delete-object` and `--case-conflict`
+for `s3 cp`, and `jq` 1.6 or later in `PATH`.
 
 ## Use
 
@@ -119,4 +119,7 @@ so what counts is how many operations a command makes. A plan reads a
 stack with one operation, a single `aws s3 cp` that fetches its objects
 at once, so it takes about as long for 30 units as for 3. `up` adds five
 operations for each unit that runs, and one for each unit that it needs,
-and none for a unit that does not change.
+three for a unit that does not change after one that ran, and none for
+the others. A stack whose objects are more than an answer of 64 MiB
+holds, or with keys that differ only by case, is read an object at a
+time.
